@@ -9,6 +9,7 @@ import {
   Terminal,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import photo from "../assets/adnan_photo.png";
 
 const Hero: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -121,7 +122,7 @@ const Hero: React.FC = () => {
             <div className="relative w-full h-full rounded-full p-0.75 bg-linear-to-br from-primary to-secondary shadow-lg shadow-primary/20">
               <div className="w-full h-full rounded-full overflow-hidden bg-surface relative">
                 <img
-                  src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?fit=crop&w=400&h=400&q=80"
+                  src={photo}
                   alt="Adnan"
                   className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500"
                 />
