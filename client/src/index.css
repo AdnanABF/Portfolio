@@ -1,0 +1,42 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Fira+Code:wght@400;500&display=swap");
+
+@import "tailwindcss";
+
+@theme {
+  --color-background: #050505;
+  --color-surface: #0f0f12;
+  --color-primary: #00d2ff;
+  --color-secondary: #7000ff;
+  --color-text: #e0e0e0;
+  --color-muted: #94a3b8;
+
+  --font-sans: Inter, sans-serif;
+  --font-mono: "Fira Code", monospace;
+}
+
+@layer utilities {
+  .bg-cyber-grid {
+    background-image:
+      linear-gradient(to right, #1f2937 1px, transparent 1px),
+      linear-gradient(to bottom, #1f2937 1px, transparent 1px);
+  }
+}
+
+/* Custom Scrollbar from your original HTML */
+body {
+  background-color: #050505;
+  color: #e0e0e0;
+}
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #050505;
+}
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #00d2ff;
+}
