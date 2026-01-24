@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import SectionWrapper from "./SectionWrapper";
 import { useForm, useWatch } from "react-hook-form";
-import { Send, CheckCircle, AlertCircle, Lock } from "lucide-react";
+import { Send, CheckCircle, AlertCircle, Lock, Trash2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import emailjs from "@emailjs/browser";
 
 interface FormData {
@@ -19,8 +20,11 @@ const Contact: React.FC = () => {
     setValue,
     formState: { errors, isSubmitting },
     reset,
+    watch,
   } = useForm<FormData>({
     defaultValues: {
+      name: "",
+      email: "",
       subject: "",
       message: "",
     },
@@ -28,6 +32,12 @@ const Contact: React.FC = () => {
 
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Watch all fields to determine if the "Clear" button should show
+  const allValues = watch();
+  const isFormDirty = Object.values(allValues).some(
+    (val) => val && val.length > 0,
+  );
 
   const subjectValue = useWatch({
     control,
@@ -42,8 +52,9 @@ const Contact: React.FC = () => {
   useEffect(() => {
     const handleAutoFill = (e: any) => {
       const { subject, message } = e.detail;
-      setValue("subject", subject, { shouldValidate: true });
-      setValue("message", message, { shouldValidate: true });
+      // We set the values and ensure the form state updates
+      setValue("subject", subject, { shouldValidate: true, shouldDirty: true });
+      setValue("message", message, { shouldValidate: true, shouldDirty: true });
     };
 
     window.addEventListener("contact-autofill", handleAutoFill);
@@ -99,6 +110,7 @@ const Contact: React.FC = () => {
     >
       <div className="max-w-4xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+          {/* Left Column Content */}
           <div>
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
               Let's <span className="text-primary">Connect</span>
@@ -108,7 +120,6 @@ const Contact: React.FC = () => {
               big platform? I'm available for freelance projects and full-time
               opportunities.
             </p>
-
             <div className="space-y-6">
               <div className="p-4 bg-white/5 rounded-lg border border-white/10">
                 <h4 className="text-primary font-mono mb-1">Email</h4>
@@ -121,6 +132,7 @@ const Contact: React.FC = () => {
             </div>
           </div>
 
+          {/* Form Column */}
           <form
             onSubmit={handleSubmit(onSubmit)}
             id="contact-form"
@@ -205,32 +217,52 @@ const Contact: React.FC = () => {
               )}
             </div>
 
-            <button
-              type="submit"
-              disabled={isSubmitting || success}
-              className={`w-full py-4 rounded-lg font-bold flex items-center justify-center gap-2 transition-all ${
-                success
-                  ? "bg-green-500/20 text-green-500 border border-green-500/50"
-                  : "bg-primary text-black hover:bg-primary/90 hover:shadow-[0_0_20px_rgba(0,210,255,0.4)]"
-              }`}
-            >
-              {success ? (
-                <>
-                  {isAccessRequest ? "Request Sent" : "Message Sent"}{" "}
-                  <CheckCircle size={20} />
-                </>
-              ) : isSubmitting ? (
-                "Transmitting..."
-              ) : isAccessRequest ? (
-                <>
-                  Send Access Request <Lock size={20} />
-                </>
-              ) : (
-                <>
-                  Init Contact <Send size={20} />
-                </>
-              )}
-            </button>
+            {/* BUTTONS CONTAINER */}
+            <div className="flex gap-3">
+              <motion.button
+                layout
+                type="submit"
+                disabled={isSubmitting || success}
+                className={`h-14 rounded-lg font-bold flex items-center justify-center gap-2 transition-all overflow-hidden ${
+                  success
+                    ? "bg-green-500/20 text-green-500 border border-green-500/50 grow"
+                    : "bg-primary text-black hover:bg-primary/90 hover:shadow-[0_0_20px_rgba(0,210,255,0.4)] active:scale-95 active:bg-primary/90 active:shadow-[0_0_20px_rgba(0,210,255,0.4)] grow"
+                }`}
+              >
+                {success ? (
+                  <>
+                    {isAccessRequest ? "Request Sent" : "Message Sent"}{" "}
+                    <CheckCircle size={20} />
+                  </>
+                ) : isSubmitting ? (
+                  "Transmitting..."
+                ) : isAccessRequest ? (
+                  <>
+                    Send Access Request <Lock size={20} />
+                  </>
+                ) : (
+                  <>
+                    Init Contact <Send size={20} />
+                  </>
+                )}
+              </motion.button>
+
+              <AnimatePresence>
+                {isFormDirty && !isSubmitting && !success && (
+                  <motion.button
+                    initial={{ width: 0, opacity: 0, x: 20 }}
+                    animate={{ width: 56, opacity: 1, x: 0 }}
+                    exit={{ width: 0, opacity: 0, x: 20 }}
+                    type="button"
+                    onClick={() => reset()}
+                    className="h-14 bg-white/5 text-gray-400 border border-white/10 rounded-lg flex items-center justify-center hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30 active:scale-95 active:bg-red-500/10 active:text-red-500 active:border-red-500/30 transition-colors"
+                    title="Clear Form"
+                  >
+                    <Trash2 size={20} />
+                  </motion.button>
+                )}
+              </AnimatePresence>
+            </div>
           </form>
         </div>
       </div>

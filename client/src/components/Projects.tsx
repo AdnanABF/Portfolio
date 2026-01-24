@@ -48,7 +48,7 @@ const Projects: React.FC = () => {
           <motion.div
             key={project.id}
             whileHover={{ y: -10 }}
-            className="group relative bg-surface border border-white/10 rounded-xl overflow-hidden hover:border-primary/50 transition-all duration-300"
+            className="flex flex-col group relative bg-surface border border-white/10 rounded-xl overflow-hidden hover:border-primary/50 transition-all duration-300"
           >
             <div className="relative h-48 overflow-hidden">
               <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors z-10" />
@@ -59,7 +59,7 @@ const Projects: React.FC = () => {
               />
             </div>
 
-            <div className="p-6">
+            <div className="p-6 flex flex-col grow">
               <div className="flex justify-between items-start mb-4">
                 <h3 className="text-xl font-bold text-white group-hover:text-primary transition-colors">
                   {project.title}
@@ -85,7 +85,7 @@ const Projects: React.FC = () => {
                 ))}
               </div>
 
-              <div className="flex items-center gap-4 pt-4 border-t border-white/5">
+              <div className="flex items-center gap-4 pt-4 border-t border-white/5 mt-auto">
                 {project.githubUrl && (
                   <a
                     href={project.isPrivate ? "#" : project.githubUrl}
