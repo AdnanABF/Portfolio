@@ -1,7 +1,7 @@
 import React from "react";
 import SectionWrapper from "./SectionWrapper";
 import { PROJECTS } from "../constants";
-import { ExternalLink, Github, Layers } from "lucide-react";
+import { ExternalLink, Github, Layers, Lock } from "lucide-react";
 import { motion } from "framer-motion";
 
 const Projects: React.FC = () => {
@@ -60,14 +60,19 @@ const Projects: React.FC = () => {
                 {project.githubUrl && (
                   <a
                     href={project.githubUrl}
+                    title={
+                      project.isPrivate ? "Private Repository" : "View Code"
+                    }
                     className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors"
                   >
                     <Github size={16} /> Code
+                    {project.isPrivate && <Lock size={12} />}
                   </a>
                 )}
                 {project.liveUrl && (
                   <a
                     href={project.liveUrl}
+                    target="_blank"
                     className="flex items-center gap-2 text-sm text-gray-400 hover:text-primary transition-colors ml-auto"
                   >
                     Live Demo <ExternalLink size={16} />

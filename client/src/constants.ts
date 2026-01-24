@@ -80,13 +80,21 @@ export const EXPERIENCE: ExperienceItem[] = [
 export const PROJECTS: ProjectItem[] = [
   {
     id: "p1",
-    title: "CloudScale Dashboard",
+    title: "Viralippurath Family",
     description:
-      "A real-time server monitoring dashboard featuring data visualization with D3.js and WebSocket integration.",
-    techStack: ["React", "TypeScript", "D3.js", ".NET Core"],
-    githubUrl: "https://github.com",
-    liveUrl: "https://example.com",
-    imageUrl: "https://picsum.photos/600/400?random=1",
+      "A private, full-stack platform built to keep my family organized and connected. It replaces messy group chats with a dedicated space for shared schedules, announcements, and task tracking.",
+    techStack: [
+      "React",
+      "NestJs",
+      "MongoDB",
+      "Tailwind CSS",
+      "Vercel",
+      "Cloudinary",
+    ],
+    githubUrl: "https://github.com/AdnanABF/Viralippurath-Family",
+    isPrivate: true,
+    liveUrl: "https://viralippurath-family.vercel.app/",
+    imageUrl: "/viralippurath_family.png",
   },
   {
     id: "p2",

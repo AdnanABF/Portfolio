@@ -21,6 +21,7 @@ export interface ProjectItem {
   githubUrl?: string;
   liveUrl?: string;
   imageUrl: string;
+  isPrivate?: boolean;
 }
 
 export interface NavItem {
