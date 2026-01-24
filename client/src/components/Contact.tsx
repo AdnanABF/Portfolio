@@ -34,7 +34,9 @@ const Contact: React.FC = () => {
     name: "subject",
   });
 
-  const isAccessRequest = subjectValue?.startsWith("Request Access:");
+  const isAccessRequest = subjectValue
+    ?.toLowerCase()
+    .includes("request access");
 
   // Effect to listen for the custom event from Projects.tsx
   useEffect(() => {
@@ -121,6 +123,7 @@ const Contact: React.FC = () => {
 
           <form
             onSubmit={handleSubmit(onSubmit)}
+            id="contact-form"
             className="space-y-6 bg-white/5 p-8 rounded-2xl border border-white/10 backdrop-blur-sm"
           >
             {error && (

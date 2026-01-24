@@ -31,8 +31,8 @@ const Projects: React.FC = () => {
     setIsModalOpen(false);
 
     // Scroll to the contact section
-    const contactSection = document.getElementById("contact");
-    contactSection?.scrollIntoView({ behavior: "smooth" });
+    const contactFormSection = document.getElementById("contact-form");
+    contactFormSection?.scrollIntoView({ behavior: "smooth" });
   };
 
   return (
