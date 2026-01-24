@@ -2,10 +2,12 @@ import React, { useState } from "react";
 import SectionWrapper from "./SectionWrapper";
 import { useForm } from "react-hook-form";
 import { Send, CheckCircle, AlertCircle } from "lucide-react";
+import emailjs from "@emailjs/browser";
 
 interface FormData {
   name: string;
   email: string;
+  subject: string;
   message: string;
 }
 
@@ -16,15 +18,51 @@ const Contact: React.FC = () => {
     formState: { errors, isSubmitting },
     reset,
   } = useForm<FormData>();
+
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const onSubmit = async (data: FormData) => {
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    console.log(data);
-    setSuccess(true);
-    reset();
-    setTimeout(() => setSuccess(false), 5000);
+    setError(null);
+    try {
+      const currentTime = new Date().toLocaleString("en-US", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      });
+
+      const templateParams = {
+        name: data.name,
+        email: data.email,
+        subject: data.subject,
+        message: data.message,
+        time: currentTime,
+      };
+
+      // 1. Send notification to YOU
+      await emailjs.send(
+        import.meta.env.VITE_EMAILJS_SERVICE_ID,
+        import.meta.env.VITE_EMAILJS_TEMPLATE_ID,
+        templateParams,
+        import.meta.env.VITE_EMAILJS_PUBLIC_KEY,
+      );
+
+      // 2. Send Auto-Reply to the SENDER
+      // We use a different Template ID for the sender's version
+      await emailjs.send(
+        import.meta.env.VITE_EMAILJS_SERVICE_ID,
+        import.meta.env.VITE_EMAILJS_AUTOREPLY_TEMPLATE_ID,
+        templateParams,
+        import.meta.env.VITE_EMAILJS_PUBLIC_KEY,
+      );
+
+      setSuccess(true);
+      reset();
+      setTimeout(() => setSuccess(false), 5000);
+    } catch (err) {
+      setError(
+        "Failed to transmit. Please check your connection and try again.",
+      );
+    }
   };
 
   return (
@@ -51,9 +89,7 @@ const Contact: React.FC = () => {
               </div>
               <div className="p-4 bg-white/5 rounded-lg border border-white/10">
                 <h4 className="text-primary font-mono mb-1">Location</h4>
-                <p className="text-white">
-                  Malappuram, Kerala, India - 679574
-                </p>
+                <p className="text-white">Malappuram, Kerala, India - 679574</p>
               </div>
             </div>
           </div>
@@ -62,37 +98,61 @@ const Contact: React.FC = () => {
             onSubmit={handleSubmit(onSubmit)}
             className="space-y-6 bg-white/5 p-8 rounded-2xl border border-white/10 backdrop-blur-sm"
           >
-            <div>
-              <label className="block text-sm font-mono text-gray-400 mb-2">
-                Identify Yourself
-              </label>
-              <input
-                {...register("name", { required: "Name is required" })}
-                className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
-                placeholder="John Doe"
-              />
-              {errors.name && (
-                <span className="flex items-center gap-1 text-red-500 text-xs mt-1">
-                  <AlertCircle size={12} /> {errors.name.message}
-                </span>
-              )}
+            {error && (
+              <div className="p-3 bg-red-500/10 border border-red-500/50 rounded-lg flex items-center gap-2 text-red-500 text-sm">
+                <AlertCircle size={16} /> {error}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-mono text-gray-400 mb-2">
+                  Identify Yourself
+                </label>
+                <input
+                  {...register("name", { required: "Name is required" })}
+                  className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                  placeholder="John Doe"
+                />
+                {errors.name && (
+                  <span className="flex items-center gap-1 text-red-500 text-xs mt-1">
+                    <AlertCircle size={12} /> {errors.name.message}
+                  </span>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-mono text-gray-400 mb-2">
+                  Comms Channel
+                </label>
+                <input
+                  {...register("email", {
+                    required: "Email is required",
+                    pattern: { value: /^\S+@\S+$/i, message: "Invalid email" },
+                  })}
+                  className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                  placeholder="john@example.com"
+                />
+                {errors.email && (
+                  <span className="flex items-center gap-1 text-red-500 text-xs mt-1">
+                    <AlertCircle size={12} /> {errors.email.message}
+                  </span>
+                )}
+              </div>
             </div>
 
             <div>
               <label className="block text-sm font-mono text-gray-400 mb-2">
-                Comms Channel
+                Subject
               </label>
               <input
-                {...register("email", {
-                  required: "Email is required",
-                  pattern: { value: /^\S+@\S+$/i, message: "Invalid email" },
-                })}
+                {...register("subject", { required: "Subject is required" })}
                 className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
-                placeholder="john@example.com"
+                placeholder="Let's Connect / Freelance Project"
               />
-              {errors.email && (
+              {errors.subject && (
                 <span className="flex items-center gap-1 text-red-500 text-xs mt-1">
-                  <AlertCircle size={12} /> {errors.email.message}
+                  <AlertCircle size={12} /> {errors.subject.message}
                 </span>
               )}
             </div>
