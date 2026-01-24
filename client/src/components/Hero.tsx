@@ -9,7 +9,6 @@ import {
   Terminal,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import photo from "../assets/adnan_photo.png";
 
 const Hero: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -122,7 +121,7 @@ const Hero: React.FC = () => {
             <div className="relative w-full h-full rounded-full p-0.75 bg-linear-to-br from-primary to-secondary shadow-lg shadow-primary/20">
               <div className="w-full h-full rounded-full overflow-hidden bg-surface relative">
                 <img
-                  src={photo}
+                  src="/adnan_photo.webp"
                   alt="Adnan"
                   className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500"
                 />
@@ -175,7 +174,10 @@ const Hero: React.FC = () => {
           className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12"
         >
           <a
-            href="#"
+            href="/Adnan_CV.pdf"
+            download
+            target="_blank"
+            rel="noopener noreferrer"
             className="group px-8 py-3.5 bg-primary text-black font-bold rounded-full hover:bg-primary/90 hover:shadow-[0_0_20px_rgba(0,210,255,0.4)] transition-all flex items-center gap-2 transform hover:-translate-y-1"
           >
             Download CV{" "}
