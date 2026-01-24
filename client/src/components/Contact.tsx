@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import SectionWrapper from "./SectionWrapper";
-import { useForm } from "react-hook-form";
-import { Send, CheckCircle, AlertCircle } from "lucide-react";
+import { useForm, useWatch } from "react-hook-form";
+import { Send, CheckCircle, AlertCircle, Lock } from "lucide-react";
 import emailjs from "@emailjs/browser";
 
 interface FormData {
@@ -15,12 +15,38 @@ const Contact: React.FC = () => {
   const {
     register,
     handleSubmit,
+    control,
+    setValue,
     formState: { errors, isSubmitting },
     reset,
-  } = useForm<FormData>();
+  } = useForm<FormData>({
+    defaultValues: {
+      subject: "",
+      message: "",
+    },
+  });
 
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const subjectValue = useWatch({
+    control,
+    name: "subject",
+  });
+
+  const isAccessRequest = subjectValue?.startsWith("Request Access:");
+
+  // Effect to listen for the custom event from Projects.tsx
+  useEffect(() => {
+    const handleAutoFill = (e: any) => {
+      const { subject, message } = e.detail;
+      setValue("subject", subject, { shouldValidate: true });
+      setValue("message", message, { shouldValidate: true });
+    };
+
+    window.addEventListener("contact-autofill", handleAutoFill);
+    return () => window.removeEventListener("contact-autofill", handleAutoFill);
+  }, [setValue]);
 
   const onSubmit = async (data: FormData) => {
     setError(null);
@@ -47,7 +73,6 @@ const Contact: React.FC = () => {
       );
 
       // 2. Send Auto-Reply to the SENDER
-      // We use a different Template ID for the sender's version
       await emailjs.send(
         import.meta.env.VITE_EMAILJS_SERVICE_ID,
         import.meta.env.VITE_EMAILJS_AUTOREPLY_TEMPLATE_ID,
@@ -188,10 +213,15 @@ const Contact: React.FC = () => {
             >
               {success ? (
                 <>
-                  Message Sent <CheckCircle size={20} />
+                  {isAccessRequest ? "Request Sent" : "Message Sent"}{" "}
+                  <CheckCircle size={20} />
                 </>
               ) : isSubmitting ? (
                 "Transmitting..."
+              ) : isAccessRequest ? (
+                <>
+                  Send Access Request <Lock size={20} />
+                </>
               ) : (
                 <>
                   Init Contact <Send size={20} />
