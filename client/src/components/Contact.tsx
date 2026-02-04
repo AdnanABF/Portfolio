@@ -223,7 +223,7 @@ const Contact: React.FC = () => {
                 layout
                 type="submit"
                 disabled={isSubmitting || success}
-                className={`h-14 rounded-lg font-bold flex items-center justify-center gap-2 transition-all overflow-hidden ${
+                className={`h-14 rounded-lg font-bold flex sm:gap-4 items-center justify-center gap-2 transition-all overflow-hidden max-[400px]:px-4 max-[400px]:text-sm ${
                   success
                     ? "bg-green-500/20 text-green-500 border border-green-500/50 grow"
                     : "bg-primary text-black hover:bg-primary/90 hover:shadow-[0_0_20px_rgba(0,210,255,0.4)] active:scale-95 active:bg-primary/90 active:shadow-[0_0_20px_rgba(0,210,255,0.4)] grow"
@@ -255,7 +255,7 @@ const Contact: React.FC = () => {
                     exit={{ width: 0, opacity: 0, x: 20 }}
                     type="button"
                     onClick={() => reset()}
-                    className="h-14 bg-white/5 text-gray-400 border border-white/10 rounded-lg flex items-center justify-center hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30 active:scale-95 active:bg-red-500/10 active:text-red-500 active:border-red-500/30 transition-colors"
+                    className="h-14 max-[400px]:p-3 bg-white/5 text-gray-400 border border-white/10 rounded-lg flex items-center justify-center hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30 active:scale-95 active:bg-red-500/10 active:text-red-500 active:border-red-500/30 transition-colors"
                     title="Clear Form"
                   >
                     <Trash2 size={20} />
