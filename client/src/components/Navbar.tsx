@@ -62,6 +62,9 @@ const Navbar: React.FC = () => {
           <button
             className="md:hidden text-gray-300 hover:text-white p-2"
             onClick={() => setIsOpen(!isOpen)}
+            aria-label={isOpen ? "Close navigation menu" : "Open navigation menu"}
+            aria-expanded={isOpen}
+            aria-controls="mobile-navigation-menu"
           >
             {isOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
@@ -72,6 +75,7 @@ const Navbar: React.FC = () => {
       <AnimatePresence>
         {isOpen && (
           <motion.div
+            id="mobile-navigation-menu"
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}

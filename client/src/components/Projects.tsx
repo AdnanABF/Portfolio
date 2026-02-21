@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import SectionWrapper from "./SectionWrapper";
 import { PROJECTS } from "../constants";
 import { ExternalLink, Github, Layers, Lock, X } from "lucide-react";
@@ -7,12 +7,53 @@ import { motion, AnimatePresence } from "framer-motion";
 const Projects: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   const openRequestModal = (e: React.MouseEvent, projectTitle: string) => {
     e.preventDefault();
     setSelectedProject(projectTitle);
     setIsModalOpen(true);
   };
+
+  useEffect(() => {
+    if (!isModalOpen) return;
+
+    const previousFocus = document.activeElement as HTMLElement | null;
+    closeButtonRef.current?.focus();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsModalOpen(false);
+        return;
+      }
+
+      if (e.key !== "Tab" || !modalRef.current) return;
+
+      const focusableElements = modalRef.current.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      );
+
+      if (focusableElements.length === 0) return;
+
+      const first = focusableElements[0];
+      const last = focusableElements[focusableElements.length - 1];
+
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      previousFocus?.focus();
+    };
+  }, [isModalOpen]);
 
   const handleConfirmRequest = () => {
     if (!selectedProject) return;
@@ -130,9 +171,15 @@ const Projects: React.FC = () => {
         {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
             <motion.div
+              ref={modalRef}
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="private-repo-title"
+              aria-describedby="private-repo-desc"
+              tabIndex={-1}
               className="bg-surface border border-white/10 p-8 rounded-2xl max-w-md w-full shadow-2xl"
             >
               <div className="flex justify-between items-start mb-6">
@@ -140,17 +187,19 @@ const Projects: React.FC = () => {
                   <Lock className="text-primary" size={24} />
                 </div>
                 <button
+                  ref={closeButtonRef}
                   onClick={() => setIsModalOpen(false)}
+                  aria-label="Close access request dialog"
                   className="text-gray-400 hover:text-white transition-colors"
                 >
                   <X size={20} />
                 </button>
               </div>
 
-              <h3 className="text-2xl font-bold text-white mb-2">
+              <h3 id="private-repo-title" className="text-2xl font-bold text-white mb-2">
                 Private Repository
               </h3>
-              <p className="text-gray-400 mb-8 leading-relaxed">
+              <p id="private-repo-desc" className="text-gray-400 mb-8 leading-relaxed">
                 The source code for{" "}
                 <span className="text-white font-semibold">
                   "{selectedProject}"

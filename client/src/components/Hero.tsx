@@ -88,14 +88,15 @@ const Hero: React.FC = () => {
     createParticles();
     draw();
 
-    window.addEventListener("resize", () => {
+    const handleResize = () => {
       resizeCanvas();
       createParticles();
-    });
+    };
+    window.addEventListener("resize", handleResize);
 
     return () => {
       cancelAnimationFrame(animationFrameId);
-      window.removeEventListener("resize", resizeCanvas);
+      window.removeEventListener("resize", handleResize);
     };
   }, []);
 

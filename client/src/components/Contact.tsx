@@ -10,7 +10,46 @@ interface FormData {
   email: string;
   subject: string;
   message: string;
+  website?: string;
 }
+
+interface ContactAutofillDetail {
+  subject: string;
+  message: string;
+}
+
+const RATE_LIMIT_STORAGE_KEY = "contact_rate_limit_v1";
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
+const RATE_LIMIT_MAX_SUBMISSIONS = 3;
+const MIN_FORM_FILL_MS = 4000;
+const SUBMISSION_COOLDOWN_MS = 30 * 1000;
+const getCurrentTimestamp = () => Date.now();
+
+const readRecentAttempts = (now: number): number[] => {
+  try {
+    const raw = window.localStorage.getItem(RATE_LIMIT_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as number[];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (timestamp) =>
+        Number.isFinite(timestamp) && now - timestamp < RATE_LIMIT_WINDOW_MS,
+    );
+  } catch {
+    return [];
+  }
+};
+
+const saveAttempts = (attempts: number[]) => {
+  try {
+    window.localStorage.setItem(
+      RATE_LIMIT_STORAGE_KEY,
+      JSON.stringify(attempts),
+    );
+  } catch {
+    // ignore storage failures
+  }
+};
 
 const Contact: React.FC = () => {
   const {
@@ -18,26 +57,22 @@ const Contact: React.FC = () => {
     handleSubmit,
     control,
     setValue,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
     reset,
-    watch,
   } = useForm<FormData>({
     defaultValues: {
       name: "",
       email: "",
       subject: "",
       message: "",
+      website: "",
     },
   });
 
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Watch all fields to determine if the "Clear" button should show
-  const allValues = watch();
-  const isFormDirty = Object.values(allValues).some(
-    (val) => val && val.length > 0,
-  );
+  const [cooldownUntil, setCooldownUntil] = useState(0);
+  const [formOpenedAt] = useState<number>(() => getCurrentTimestamp());
 
   const subjectValue = useWatch({
     control,
@@ -50,8 +85,9 @@ const Contact: React.FC = () => {
 
   // Effect to listen for the custom event from Projects.tsx
   useEffect(() => {
-    const handleAutoFill = (e: any) => {
-      const { subject, message } = e.detail;
+    const handleAutoFill = (event: Event) => {
+      const { subject, message } = (event as CustomEvent<ContactAutofillDetail>)
+        .detail;
       // We set the values and ensure the form state updates
       setValue("subject", subject, { shouldValidate: true, shouldDirty: true });
       setValue("message", message, { shouldValidate: true, shouldDirty: true });
@@ -63,6 +99,29 @@ const Contact: React.FC = () => {
 
   const onSubmit = async (data: FormData) => {
     setError(null);
+
+    if (data.website?.trim()) {
+      return;
+    }
+
+    const now = getCurrentTimestamp();
+    if (now - formOpenedAt < MIN_FORM_FILL_MS) {
+      setError("Please take a moment before sending.");
+      return;
+    }
+
+    if (now < cooldownUntil) {
+      const remainingSeconds = Math.ceil((cooldownUntil - now) / 1000);
+      setError(`Please wait ${remainingSeconds}s before sending again.`);
+      return;
+    }
+
+    const attempts = readRecentAttempts(now);
+    if (attempts.length >= RATE_LIMIT_MAX_SUBMISSIONS) {
+      setError("Submission limit reached. Please try again in about an hour.");
+      return;
+    }
+
     try {
       const currentTime = new Date().toLocaleString("en-US", {
         dateStyle: "medium",
@@ -95,8 +154,10 @@ const Contact: React.FC = () => {
 
       setSuccess(true);
       reset();
+      saveAttempts([...attempts, now]);
+      setCooldownUntil(now + SUBMISSION_COOLDOWN_MS);
       setTimeout(() => setSuccess(false), 5000);
-    } catch (err) {
+    } catch {
       setError(
         "Failed to transmit. Please check your connection and try again.",
       );
@@ -138,6 +199,16 @@ const Contact: React.FC = () => {
             id="contact-form"
             className="space-y-6 bg-white/5 p-8 rounded-2xl border border-white/10 backdrop-blur-sm"
           >
+            <div className="hidden" aria-hidden="true">
+              <label htmlFor="website">Website</label>
+              <input
+                id="website"
+                tabIndex={-1}
+                autoComplete="off"
+                {...register("website")}
+              />
+            </div>
+
             {error && (
               <div className="p-3 bg-red-500/10 border border-red-500/50 rounded-lg flex items-center gap-2 text-red-500 text-sm">
                 <AlertCircle size={16} /> {error}
@@ -248,7 +319,7 @@ const Contact: React.FC = () => {
               </motion.button>
 
               <AnimatePresence>
-                {isFormDirty && !isSubmitting && !success && (
+                {isDirty && !isSubmitting && !success && (
                   <motion.button
                     initial={{ width: 0, opacity: 0, x: 20 }}
                     animate={{ width: 56, opacity: 1, x: 0 }}
