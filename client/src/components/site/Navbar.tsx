@@ -5,15 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LinkButton } from "@/components/ui/Button";
-
-// Temporary local copy — Step 5 ports these to lib/data.ts
-const NAV_ITEMS = [
-  { label: "About", href: "/#about" },
-  { label: "Experience", href: "/#experience" },
-  { label: "Skills", href: "/#skills" },
-  { label: "Projects", href: "/#projects" },
-  { label: "Contact", href: "/#contact" },
-];
+import { NAV_ITEMS } from "@/lib/data";
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);

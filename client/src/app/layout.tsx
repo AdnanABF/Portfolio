@@ -3,9 +3,8 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import { Providers } from "@/components/providers";
 import { Footer } from "@/components/site/Footer";
 import { Navbar } from "@/components/site/Navbar";
+import { SITE_DESCRIPTION, SITE_TITLE, SITE_URL } from "@/lib/site";
 import "./globals.css";
-
-const SITE_URL = "https://adnanbinfarook.com";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -17,10 +16,8 @@ const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
 });
 
-const title =
-  "Adnan Bin Farook | Software Engineer - .NET, C#, MSSQL, Azure, React, NestJS, MongoDB";
-const description =
-  "Portfolio of Adnan Bin Farook, a Software Engineer specializing in modernizing legacy systems and building scalable full-stack applications with .NET, React, and NestJS.";
+const title = SITE_TITLE;
+const description = SITE_DESCRIPTION;
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
