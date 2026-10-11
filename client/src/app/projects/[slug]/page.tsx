@@ -101,7 +101,7 @@ export default async function ProjectDetailPage({
           </LinkButton>
         )}
         {project.githubUrl && project.isPrivate && (
-          <LinkButton href={`/#contact?request=${project.slug}`}>
+          <LinkButton href={`/?request=${project.slug}#contact`}>
             <Lock size={18} /> Request Access
           </LinkButton>
         )}

@@ -94,7 +94,7 @@ function ProjectLinks({ project }: { project: ProjectItem }) {
   const confirmRequest = () => {
     close();
     // Step 10's contact section reads ?request= to prefill the form.
-    router.push(`/#contact?request=${project.slug}`);
+    router.push(`/?request=${project.slug}#contact`);
   };
 
   return (
