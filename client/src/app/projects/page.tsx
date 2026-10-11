@@ -10,6 +10,7 @@ export const metadata: Metadata = {
 export default function ProjectsPage() {
   return (
     <div className="pt-20">
+      <h1 className="sr-only">Projects</h1>
       <Projects />
     </div>
   );

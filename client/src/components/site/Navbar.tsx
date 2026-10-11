@@ -61,7 +61,7 @@ export function Navbar() {
 
           <button
             type="button"
-            className="p-2 text-muted transition-colors hover:text-foreground md:hidden"
+            className="rounded-lg p-2 text-muted transition-colors outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary md:hidden"
             onClick={() => setIsOpen(!isOpen)}
             aria-label={isOpen ? "Close navigation menu" : "Open navigation menu"}
             aria-expanded={isOpen}

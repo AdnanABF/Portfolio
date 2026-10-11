@@ -22,6 +22,7 @@ function formatDate(iso: string) {
 export default function BlogPage() {
   return (
     <div className="mx-auto max-w-4xl px-6 pt-28 pb-16 md:px-12">
+      <h1 className="sr-only">Blog</h1>
       <Reveal>
         <SectionHeading
           eyebrow="// notes"
