@@ -6,8 +6,9 @@ Personal portfolio for Adnan Bin Farook.
 
 ```text
 Portfolio Web/
-  client/  # Next.js 15 App Router frontend (light-first + dark toggle)
-           # Self-deployable to Vercel. See client/README.md
+  client/  # Next.js App Router frontend (light-first + dark toggle)
+           # Self-contained via Dockerfile (Coolify). No client/README yet —
+           # see branch history and client/.env.example for setup.
   server/  # RESERVED placeholder for future standalone backend API
            # Currently empty. See server/README.md for API contract
 ```

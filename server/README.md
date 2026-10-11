@@ -5,7 +5,8 @@ future standalone backend API (e.g. NestJS / .NET / Express).
 
 ## Boundary rules
 
-- `client/` (Next.js App Router) must stay self-deployable to Vercel today.
+- `client/` (Next.js App Router) must stay self-deployable on its own
+  (Coolify Dockerfile) today.
 - `client/` must NEVER import from `../server`.
 - All backend access from the client goes through `client/lib/api-client.ts`,
   which uses `NEXT_PUBLIC_API_URL` when set, otherwise falls back to internal
@@ -54,8 +55,8 @@ Same shape as projects with `slug`, `title`, `excerpt`, `publishedAt`.
 ## Suggested stack (not decided)
 
 - NestJS + TypeScript + zod + Resend, or ASP.NET Core Minimal API.
-- Deploy separately (e.g. Railway / Azure App Service), set
-  `NEXT_PUBLIC_API_URL=https://api.example.com` in `client/.env`.
+- Deploy as a second Coolify service (e.g. `api.adnanbinfarook.com`), set
+  `NEXT_PUBLIC_API_URL=https://api.adnanbinfarook.com` in Coolify env vars.
 
 ## Status
 

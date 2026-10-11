@@ -5,6 +5,8 @@ const nextConfig: NextConfig = {
   /* config options here */
   cacheComponents: true,
   partialPrefetching: true,
+  // Slim self-contained server for the Coolify Dockerfile.
+  output: "standalone",
   pageExtensions: ["ts", "tsx", "mdx"],
   turbopack: {
     rules: {

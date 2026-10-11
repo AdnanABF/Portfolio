@@ -8,8 +8,7 @@ import type { PostItem, ProjectItem } from "./types";
  * these functions call the remote API. Otherwise they fall back to the
  * local `lib/data.ts` content / internal Server Actions (Step 10).
  *
- * Components must import through here — never from `../server`
- * or `_reference-vite`.
+ * Components must import through here — never from `../server`.
  */
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
