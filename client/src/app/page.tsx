@@ -6,6 +6,7 @@ import { StackCell } from "@/components/bento/StackCell";
 import { Reveal } from "@/components/effects/Reveal";
 import { About } from "@/components/sections/About";
 import { Experience } from "@/components/sections/Experience";
+import { Projects } from "@/components/sections/Projects";
 import { Skills } from "@/components/sections/Skills";
 
 export default function Home() {
@@ -33,6 +34,7 @@ export default function Home() {
       <About />
       <Experience />
       <Skills />
+      <Projects />
     </>
   );
 }
