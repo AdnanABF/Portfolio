@@ -1,11 +1,26 @@
 import { Heart } from "lucide-react";
+import Link from "next/link";
 import { Suspense } from "react";
 import { YearNow } from "./YearNow";
 
 export function Footer() {
   return (
     <footer className="border-t border-line bg-surface py-8 text-center">
-      <div className="mx-auto max-w-7xl px-6">
+      <div className="mx-auto flex max-w-7xl flex-col items-center gap-4 px-6">
+        <nav
+          aria-label="Footer"
+          className="flex items-center gap-6 font-mono text-sm text-muted"
+        >
+          <Link href="/projects" className="transition-colors hover:text-primary">
+            Projects
+          </Link>
+          <Link href="/blog" className="transition-colors hover:text-primary">
+            Blog
+          </Link>
+          <Link href="/#contact" className="transition-colors hover:text-primary">
+            Contact
+          </Link>
+        </nav>
         <p className="flex items-center justify-center gap-2 font-mono text-sm text-muted">
           ©{" "}
           <Suspense fallback="…">

@@ -132,8 +132,27 @@ export const PROJECTS: ProjectItem[] = [
   },
 ];
 
-/** Blog posts — empty until Step 9 adds MDX tooling. */
-export const POSTS: PostItem[] = [];
+/**
+ * Blog posts — metadata lives here (listings, sitemap, api-client);
+ * bodies live in content/blog/*.mdx and are mapped in lib/posts.ts.
+ * Keep title/excerpt/publishedAt in sync with the MDX `metadata` export.
+ */
+export const POSTS: PostItem[] = [
+  {
+    slug: "building-this-site",
+    title: "How this site is built",
+    excerpt:
+      "Next.js App Router on a light-first theme, MDX for writing, and Docker on Coolify instead of Vercel — the full stack behind this portfolio.",
+    publishedAt: "2026-10-11",
+  },
+  {
+    slug: "hello-world",
+    title: "Hello, blog",
+    excerpt:
+      "Why this portfolio has a blog, and what I plan to write about: .NET modernization, React, and shipping on a self-hosted stack.",
+    publishedAt: "2026-10-11",
+  },
+];
 
 export function getProjectBySlug(slug: string): ProjectItem | undefined {
   return PROJECTS.find((p) => p.slug === slug);

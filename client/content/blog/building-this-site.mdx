@@ -1,0 +1,29 @@
+export const metadata = {
+  title: "How this site is built",
+  excerpt:
+    "Next.js App Router on a light-first theme, MDX for writing, and Docker on Coolify instead of Vercel — the full stack behind this portfolio.",
+  publishedAt: "2026-10-11",
+};
+
+## How this site is built
+
+This portfolio is a **Next.js App Router** application, written in TypeScript
+and styled with Tailwind CSS v4. A few decisions worth noting:
+
+### Light-first, dark on demand
+
+The default theme is a warm off-white. Dark mode is a class toggle away,
+persisted per visitor. No flash on load, and `prefers-reduced-motion` is
+respected everywhere.
+
+### Content as code
+
+Posts are MDX files in `content/blog/`. Project case studies get static
+routes with per-page metadata. Everything prerenders at build time, so the
+site stays fast on a small VPS.
+
+### Self-hosted on Coolify
+
+Instead of Vercel, the site ships as a standalone Docker image to Coolify on
+a private VPS — frontend now, and a separate backend API service later. The
+contact form runs on Next.js Server Actions until that API exists.
