@@ -82,7 +82,7 @@ export function ContactForm() {
     <form
       onSubmit={handleSubmit(onSubmit)}
       id="contact-form"
-      className="space-y-5 rounded-2xl border border-line bg-surface p-6 shadow-[0_1px_0_rgba(28,25,23,0.04),0_8px_24px_-12px_rgba(28,25,23,0.12)] md:p-8 dark:shadow-none"
+      className="space-y-5 neo-card p-6 md:p-8"
       noValidate
     >
       {/* Honeypot — hidden from humans and assistive tech */}
@@ -107,7 +107,7 @@ export function ContactForm() {
             {...register("name")}
             placeholder="John Doe"
             autoComplete="name"
-            className="w-full rounded-lg border border-line bg-background p-3 text-foreground transition-all outline-none placeholder:text-muted/60 focus:border-primary focus:ring-1 focus:ring-primary"
+            className="w-full neo-input p-3 outline-none placeholder:text-muted/60"
           />
           {errors.name && (
             <FieldError message={errors.name.message} />
@@ -124,7 +124,7 @@ export function ContactForm() {
             placeholder="john@example.com"
             autoComplete="email"
             inputMode="email"
-            className="w-full rounded-lg border border-line bg-background p-3 text-foreground transition-all outline-none placeholder:text-muted/60 focus:border-primary focus:ring-1 focus:ring-primary"
+            className="w-full neo-input p-3 outline-none placeholder:text-muted/60"
           />
           {errors.email && (
             <FieldError message={errors.email.message} />
@@ -140,7 +140,7 @@ export function ContactForm() {
           id="contact-subject"
           {...register("subject")}
           placeholder="Let's Connect / Freelance Project"
-          className="w-full rounded-lg border border-line bg-background p-3 text-foreground transition-all outline-none placeholder:text-muted/60 focus:border-primary focus:ring-1 focus:ring-primary"
+          className="w-full neo-input p-3 outline-none placeholder:text-muted/60"
         />
         {errors.subject && (
           <FieldError message={errors.subject.message} />
@@ -156,7 +156,7 @@ export function ContactForm() {
           {...register("message")}
           rows={4}
           placeholder="Tell me about your project..."
-          className="w-full resize-none rounded-lg border border-line bg-background p-3 text-foreground transition-all outline-none placeholder:text-muted/60 focus:border-primary focus:ring-1 focus:ring-primary"
+          className="w-full resize-none neo-input p-3 outline-none placeholder:text-muted/60"
         />
         {errors.message && (
           <FieldError message={errors.message.message} />
