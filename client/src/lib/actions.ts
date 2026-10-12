@@ -1,7 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
-import { Resend } from "resend";
+import emailjs from "@emailjs/nodejs";
 import {
   COOLDOWN_MS,
   MIN_FORM_FILL_MS,
@@ -10,7 +10,6 @@ import {
   contactSchema,
   type ContactInput,
 } from "./contact";
-import { SITE_EMAIL } from "./site";
 
 export interface SendResult {
   ok: boolean;
@@ -73,11 +72,14 @@ export async function sendContact(input: ContactInput): Promise<SendResult> {
     };
   }
 
-  const apiKey = process.env.RESEND_API_KEY;
-  const from =
-    process.env.RESEND_FROM ?? `Portfolio <hello@adnanbinfarook.com>`;
-  const to = process.env.CONTACT_TO_EMAIL ?? SITE_EMAIL;
-  if (!apiKey) {
+  // Server-side EmailJS (same account + templates v1 used in the browser).
+  // All keys stay on the server — nothing is exposed to the client.
+  const serviceId = process.env.EMAILJS_SERVICE_ID;
+  const templateId = process.env.EMAILJS_TEMPLATE_ID;
+  const autoreplyTemplateId = process.env.EMAILJS_AUTOREPLY_TEMPLATE_ID;
+  const publicKey = process.env.EMAILJS_PUBLIC_KEY;
+  const privateKey = process.env.EMAILJS_PRIVATE_KEY;
+  if (!serviceId || !templateId || !publicKey || !privateKey) {
     return {
       ok: false,
       error: "Email service is not configured yet. Please email directly.",
@@ -89,26 +91,29 @@ export async function sendContact(input: ContactInput): Promise<SendResult> {
     timeStyle: "short",
   });
 
-  try {
-    const resend = new Resend(apiKey);
+  // Same template params v1 sent — existing templates work unchanged.
+  const templateParams = {
+    name: data.name,
+    email: data.email,
+    subject: data.subject,
+    message: data.message,
+    time: stamp,
+  };
+  const auth = { publicKey, privateKey };
 
+  try {
     // 1. Notify the owner.
-    const owner = await resend.emails.send({
-      from,
-      to,
-      replyTo: data.email,
-      subject: `[Portfolio] ${data.subject}`,
-      text: `From: ${data.name} <${data.email}>\nTime: ${stamp}\n\n${data.message}`,
-    });
-    if (owner.error) throw new Error(owner.error.message);
+    await emailjs.send(serviceId, templateId, templateParams, auth);
 
     // 2. Auto-reply to the sender (best-effort).
-    await resend.emails.send({
-      from,
-      to: data.email,
-      subject: "Thanks for reaching out!",
-      text: `Hi ${data.name},\n\nThanks for your message — I'll get back to you soon.\n\n— Adnan`,
-    });
+    if (autoreplyTemplateId) {
+      await emailjs.send(
+        serviceId,
+        autoreplyTemplateId,
+        templateParams,
+        auth,
+      );
+    }
 
     attempts.set(ip, [...recent, now]);
     lastSent.set(ip, now);

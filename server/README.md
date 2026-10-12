@@ -40,7 +40,7 @@ Responses:
 
 Server responsibilities: zod validation, honeypot field, rate limit
 (3/hour + 30s cooldown per IP), send owner notification + sender auto-reply
-via Resend.
+via EmailJS (same templates the Next.js client uses).
 
 ### `GET /api/projects` → `200`
 
@@ -54,7 +54,7 @@ Same shape as projects with `slug`, `title`, `excerpt`, `publishedAt`.
 
 ## Suggested stack (not decided)
 
-- NestJS + TypeScript + zod + Resend, or ASP.NET Core Minimal API.
+- NestJS + TypeScript + zod + EmailJS, or ASP.NET Core Minimal API.
 - Deploy as a second Coolify service (e.g. `api.adnanbinfarook.com`), set
   `NEXT_PUBLIC_API_URL=https://api.adnanbinfarook.com` in Coolify env vars.
 
