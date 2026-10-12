@@ -77,9 +77,20 @@ export function Experience() {
                           index % 2 !== 0 && "md:justify-end"
                         }`}
                       >
-                        {exp.tech.map((t) => (
-                          <Badge key={t}>{t}</Badge>
-                        ))}
+                        {exp.tech.map((t, i) => {
+                          const colors: Array<"yellow" | "mint" | "violet" | "coral" | "sky"> = [
+                            "sky",
+                            "mint",
+                            "yellow",
+                            "coral",
+                            "violet",
+                          ];
+                          return (
+                            <Badge key={t} color={colors[i % colors.length]}>
+                              {t}
+                            </Badge>
+                          );
+                        })}
                       </div>
                     </Card>
                   </div>

@@ -8,16 +8,15 @@ import { GitHubIcon, LinkedInIcon } from "./SocialIcons";
 
 export function HeroCell() {
   return (
-    <div className="relative h-full overflow-hidden rounded-2xl border border-line bg-surface p-8 shadow-[0_1px_0_rgba(28,25,23,0.04),0_8px_24px_-12px_rgba(28,25,23,0.12)] md:p-10 dark:shadow-none">
+    <div className="neo-card relative h-full overflow-hidden p-8 md:p-10">
       <ParticleField />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(14,116,144,0.06),transparent_70%)] dark:bg-[radial-gradient(circle_at_50%_50%,rgba(0,210,255,0.05),transparent_70%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(35,108,137,0.08),transparent_70%)]" />
 
       <div className="relative flex flex-col items-start gap-6">
         <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
           <div className="group relative h-32 w-32 shrink-0 md:h-36 md:w-36">
-            <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary via-secondary to-primary opacity-20 blur-xl transition-opacity duration-500 group-hover:opacity-40" />
-            <div className="relative h-full w-full rounded-full bg-gradient-to-br from-primary to-secondary p-1 shadow-lg">
-              <div className="relative h-full w-full overflow-hidden rounded-full bg-surface">
+            <div className="relative h-full w-full rounded-2xl border-2 border-line bg-surface p-1 shadow-[3px_3px_0px_var(--shadow-color)]">
+              <div className="relative h-full w-full overflow-hidden rounded-xl bg-surface">
                 <Image
                   src="/adnan_photo.webp"
                   alt="Adnan Bin Farook"
@@ -30,9 +29,9 @@ export function HeroCell() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 rounded-full border border-line bg-cream px-4 py-1.5 dark:bg-surface">
-            <Terminal size={14} className="text-primary" />
-            <span className="font-mono text-sm text-muted">
+          <div className="flex items-center gap-2 rounded-xl border-2 border-line bg-accent-yellow px-4 py-2 shadow-[3px_3px_0px_var(--shadow-color)] transition-transform hover:translate-x-[-1px] hover:translate-y-[-1px]">
+            <Terminal size={15} className="text-neutral-950 dark:text-amber-300" />
+            <span className="font-mono text-sm font-black text-neutral-950 dark:text-amber-200">
               Hello, I&apos;m Adnan
             </span>
           </div>

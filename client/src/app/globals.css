@@ -2,43 +2,126 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Light-first (default): warm off-white / cream */
+/* Cyber Mint & Hyper Violet Neo-Brutalism
+   Expressive, lively, creative palette with mint sorbet base, electric purple CTA, and punchy multi-color accents */
 :root {
-  --background: #faf8f5;
-  --surface: #ffffff;
-  --surface-2: #f3efe7;
-  --foreground: #1c1917;
-  --muted: #78716c;
-  --line: #e7e0d3;
-  --primary: #0e7490;
-  --primary-strong: #155e75;
-  --secondary: #6d28d9;
+  --background: #e6f6ee;           /* Soft mint sorbet base (no pure white) */
+  --surface: #f2faf5;              /* Frosted mint card surface */
+  --surface-2: #d9ede2;            /* Deeper mint tier */
+  --surface-accent: #ede8fa;       /* Lavender accent card */
+  --foreground: #0e1a13;           /* Deep ink green */
+  --muted: #495e52;                /* Muted forest */
+  --line: #14211a;                 /* Deep jungle crisp 2.5px border */
+  --shadow-color: #14211a;         /* Crisp 4px shadow */
+  --primary: #6c5ce7;              /* Hyper electric purple CTA */
+  --primary-strong: #5a4ad1;       /* Deep electric purple hover */
+  --secondary: #00b894;            /* Vivid mint */
+  /* Expressive Accent Tokens for Badges & Highlights */
+  --accent-yellow: #ffd32a;        /* Cyber yellow */
+  --accent-violet: #a29bfe;        /* Soft electric violet */
+  --accent-coral: #ff7675;         /* Strawberry punch */
+  --accent-mint: #00b894;          /* Vivid mint */
+  --accent-sky: #0984e3;           /* Electric sky blue */
 }
 
 .dark {
-  --background: #09090b;
-  --surface: #101014;
-  --surface-2: #17171c;
-  --foreground: #e7e7e7;
-  --muted: #a1a1aa;
-  --line: #27272a;
-  --primary: #00d2ff;
-  --primary-strong: #67e8f9;
-  --secondary: #a78bfa;
+  --background: #0a0f1d;           /* Deep midnight night-sky navy */
+  --surface: #111827;              /* Deep dark navy card surface */
+  --surface-2: #1e293b;            /* Elevated navy slate tier */
+  --surface-accent: #1e1b4b;       /* Dark indigo sky accent surface */
+  --foreground: #f1f5f9;           /* Starlight crisp cool white text */
+  --muted: #94a3b8;                /* Soft silver-slate muted text */
+  --line: #1e293b;                 /* Crisp deep navy border */
+  --shadow-color: #020617;         /* Deep abyss shadow */
+  --primary: #6366f1;              /* Electric royal indigo / violet CTA */
+  --primary-strong: #818cf8;       /* Bright electric indigo hover */
+  --secondary: #38bdf8;            /* Bright cyber sky cyan */
+  /* Vibrant, jewel starlight badges in dark mode */
+  --accent-yellow: #fbbf24;        /* Star gold */
+  --accent-violet: #a855f7;        /* Cosmic purple */
+  --accent-coral: #fb7185;         /* Aurora pink/coral */
+  --accent-mint: #34d399;          /* Emerald mint */
+  --accent-sky: #38bdf8;           /* Cyber sky cyan */
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-surface: var(--surface);
   --color-cream: var(--surface-2);
+  --color-surface-accent: var(--surface-accent);
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
   --color-line: var(--line);
   --color-primary: var(--primary);
   --color-primary-strong: var(--primary-strong);
   --color-secondary: var(--secondary);
+  --color-accent-yellow: var(--accent-yellow);
+  --color-accent-violet: var(--accent-violet);
+  --color-accent-coral: var(--accent-coral);
+  --color-accent-mint: var(--accent-mint);
+  --color-accent-sky: var(--accent-sky);
   --font-sans: var(--font-inter);
   --font-mono: var(--font-jetbrains-mono);
+}
+
+/* Neo-Brutalist shadow helpers */
+.neo-card {
+  background-color: var(--surface);
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 4px 4px 0px var(--shadow-color);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.neo-card:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 5px 5px 0px var(--shadow-color);
+}
+
+.neo-button-primary {
+  background-color: var(--primary);
+  color: #ffffff;
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 3px 3px 0px var(--shadow-color);
+  transition: all 0.15s ease;
+}
+.neo-button-primary:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0px var(--shadow-color);
+}
+.neo-button-primary:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0px var(--shadow-color);
+}
+
+.neo-button-secondary {
+  background-color: var(--surface-2);
+  color: var(--foreground);
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 3px 3px 0px var(--shadow-color);
+  transition: all 0.15s ease;
+}
+.neo-button-secondary:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0px var(--shadow-color);
+}
+.neo-button-secondary:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0px var(--shadow-color);
+}
+
+.neo-input {
+  background-color: var(--surface);
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  color: var(--foreground);
+  box-shadow: 2px 2px 0px var(--shadow-color);
+  transition: all 0.2s ease;
+}
+.neo-input:focus {
+  border-color: var(--primary);
+  box-shadow: 3px 3px 0px var(--shadow-color);
 }
 
 html {

@@ -39,12 +39,12 @@ export function Navbar() {
 
         {/* Center: Desktop Nav (Pill Layout) */}
         <div className="absolute top-1/2 left-1/2 hidden -translate-x-1/2 -translate-y-1/2 items-center md:flex">
-          <div className="flex items-center gap-1 rounded-full border border-line bg-surface/80 p-1.5 shadow-lg shadow-black/5 backdrop-blur-md dark:shadow-black/20">
+          <div className="flex items-center gap-1 rounded-full border-2 border-line bg-surface/90 p-1.5 shadow-[3px_3px_0px_var(--shadow-color)] backdrop-blur-md">
             {NAV_ITEMS.map((item) => (
               <Link
                 key={item.label}
                 href={item.href}
-                className="rounded-full px-4 py-2 text-sm font-medium text-muted transition-all hover:bg-cream hover:text-foreground"
+                className="rounded-full px-4 py-1.5 text-sm font-semibold text-muted transition-all hover:bg-cream hover:text-foreground"
               >
                 {item.label}
               </Link>
