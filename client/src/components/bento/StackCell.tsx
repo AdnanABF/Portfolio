@@ -15,6 +15,19 @@ const HIGHLIGHTS = [
   "Git",
 ];
 
+const BADGE_COLORS: Array<"yellow" | "mint" | "violet" | "coral" | "sky"> = [
+  "coral",
+  "yellow",
+  "sky",
+  "mint",
+  "violet",
+  "coral",
+  "yellow",
+  "mint",
+  "sky",
+  "violet",
+];
+
 export function StackCell() {
   const skills = SKILLS.filter((s) => HIGHLIGHTS.includes(s.name));
   return (
@@ -23,8 +36,13 @@ export function StackCell() {
         <span className="mr-2 text-primary">/</span>Core stack
       </h3>
       <div className="flex flex-wrap gap-2">
-        {skills.map((skill) => (
-          <Badge key={skill.name}>{skill.name}</Badge>
+        {skills.map((skill, index) => (
+          <Badge
+            key={skill.name}
+            color={BADGE_COLORS[index % BADGE_COLORS.length]}
+          >
+            {skill.name}
+          </Badge>
         ))}
       </div>
     </Card>

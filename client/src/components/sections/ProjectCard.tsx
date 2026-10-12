@@ -45,9 +45,20 @@ export function ProjectCard({ project }: { project: ProjectItem }) {
         </p>
 
         <div className="mb-4 flex flex-wrap gap-2">
-          {project.techStack.map((tech) => (
-            <Badge key={tech}>{tech}</Badge>
-          ))}
+          {project.techStack.map((tech, i) => {
+            const colors: Array<"yellow" | "mint" | "violet" | "coral" | "sky"> = [
+              "mint",
+              "coral",
+              "yellow",
+              "sky",
+              "violet",
+            ];
+            return (
+              <Badge key={tech} color={colors[i % colors.length]}>
+                {tech}
+              </Badge>
+            );
+          })}
         </div>
 
         <ProjectLinks project={project} />
