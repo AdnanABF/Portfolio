@@ -134,7 +134,12 @@ function ProjectLinks({ project }: { project: ProjectItem }) {
       </div>
 
       {requestOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) close();
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+        >
           <div
             ref={dialogRef}
             role="dialog"

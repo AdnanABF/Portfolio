@@ -35,6 +35,8 @@ export function ParticleField({ className = "" }: { className?: string }) {
 
     let animationFrameId = 0;
     let particles: Particle[] = [];
+    let isVisible = true;
+    let isRunning = false;
 
     const resizeCanvas = () => {
       canvas.width = parent.clientWidth;
@@ -43,10 +45,13 @@ export function ParticleField({ className = "" }: { className?: string }) {
 
     const createParticles = () => {
       particles = [];
-      const count = Math.min(
-        120,
-        Math.floor(parent.clientWidth / 15),
-      );
+      const width = parent.clientWidth;
+      const isMobile = width < 768;
+      // Cap at 40 on mobile, 90 on desktop to preserve 60fps & reduce CPU
+      const maxCount = isMobile ? 40 : 90;
+      const divisor = isMobile ? 22 : 16;
+      const count = Math.min(maxCount, Math.floor(width / divisor));
+
       for (let i = 0; i < count; i++) {
         particles.push({
           x: Math.random() * canvas.width,
@@ -78,8 +83,8 @@ export function ParticleField({ className = "" }: { className?: string }) {
           const dx = p.x - p2.x;
           const dy = p.y - p2.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 100) {
-            ctx.strokeStyle = `rgba(${lineColor}, ${0.05 - dist / 2000})`;
+          if (dist < 90) {
+            ctx.strokeStyle = `rgba(${lineColor}, ${0.05 - dist / 1800})`;
             ctx.lineWidth = 0.5;
             ctx.beginPath();
             ctx.moveTo(p.x, p.y);
@@ -103,11 +108,38 @@ export function ParticleField({ className = "" }: { className?: string }) {
       return;
     }
 
-    const draw = (time: number) => {
-      drawFrame(time);
-      animationFrameId = requestAnimationFrame(draw);
+    const startAnimation = () => {
+      if (isRunning) return;
+      isRunning = true;
+      const loop = (time: number) => {
+        if (!isVisible) {
+          isRunning = false;
+          return;
+        }
+        drawFrame(time);
+        animationFrameId = requestAnimationFrame(loop);
+      };
+      animationFrameId = requestAnimationFrame(loop);
     };
-    animationFrameId = requestAnimationFrame(draw);
+
+    const stopAnimation = () => {
+      isRunning = false;
+      cancelAnimationFrame(animationFrameId);
+    };
+
+    // Pause when off-screen to save battery and rendering cycles
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        isVisible = entry.isIntersecting;
+        if (isVisible) {
+          startAnimation();
+        } else {
+          stopAnimation();
+        }
+      },
+      { threshold: 0.05 },
+    );
+    observer.observe(canvas);
 
     const handleResize = () => {
       resizeCanvas();
@@ -116,7 +148,8 @@ export function ParticleField({ className = "" }: { className?: string }) {
     window.addEventListener("resize", handleResize);
 
     return () => {
-      cancelAnimationFrame(animationFrameId);
+      stopAnimation();
+      observer.disconnect();
       window.removeEventListener("resize", handleResize);
     };
   }, [resolvedTheme]);
