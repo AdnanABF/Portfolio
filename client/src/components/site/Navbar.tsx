@@ -54,7 +54,7 @@ export function Navbar() {
 
         {/* Right: Hire Me + Theme + Mobile Toggle */}
         <div className="z-20 flex items-center gap-3">
-          <LinkButton href="/#contact" className="hidden px-5 py-2 md:inline-flex">
+          <LinkButton href="/#contact" className="px-5 py-2 max-md:hidden">
             Hire Me
           </LinkButton>
           <ThemeToggle />
