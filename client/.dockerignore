@@ -1,0 +1,15 @@
+node_modules
+.next
+out
+dist
+.git
+.github
+.vscode
+.idea
+.env*
+!.env.example
+_reference-vite
+*.log
+npm-debug.log*
+coverage
+.next/cache
