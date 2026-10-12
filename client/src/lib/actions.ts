@@ -72,6 +72,46 @@ export async function sendContact(input: ContactInput): Promise<SendResult> {
     };
   }
 
+  // If a dedicated remote backend exists (server/), forward the validated payload.
+  const remoteApi = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+  if (remoteApi) {
+    try {
+      const res = await fetch(`${remoteApi}/api/contact`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: data.name,
+          email: data.email,
+          subject: data.subject,
+          message: data.message,
+        }),
+      });
+
+      if (res.ok) {
+        attempts.set(ip, [...recent, now]);
+        lastSent.set(ip, now);
+        return { ok: true };
+      }
+
+      if (res.status === 429) {
+        return {
+          ok: false,
+          error: "Submission limit reached. Please try again in about an hour.",
+        };
+      }
+
+      return {
+        ok: false,
+        error: "Failed to transmit via backend API. Please try again.",
+      };
+    } catch {
+      return {
+        ok: false,
+        error: "Unable to reach backend service. Please email directly.",
+      };
+    }
+  }
+
   // Server-side EmailJS (same account + templates v1 used in the browser).
   // All keys stay on the server — nothing is exposed to the client.
   const serviceId = process.env.EMAILJS_SERVICE_ID;

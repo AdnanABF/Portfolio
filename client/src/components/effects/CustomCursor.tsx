@@ -49,22 +49,43 @@ export function CustomCursor() {
     let ringY = -100;
     let scale = 1;
     let raf = 0;
+    let isMoving = false;
+
+    const render = () => {
+      dot.style.transform = `translate(${x - 8}px, ${y - 8}px) scale(${scale})`;
+      ring.style.transform = `translate(${ringX - 16}px, ${ringY - 16}px) scale(${scale})`;
+    };
+
+    const loop = () => {
+      const dx = x - ringX;
+      const dy = y - ringY;
+      ringX += dx * 0.16;
+      ringY += dy * 0.16;
+      render();
+
+      // If the ring is close enough to target (<0.1px difference), sleep loop to save CPU
+      if (Math.abs(dx) < 0.1 && Math.abs(dy) < 0.1) {
+        ringX = x;
+        ringY = y;
+        render();
+        isMoving = false;
+        return;
+      }
+
+      raf = requestAnimationFrame(loop);
+    };
 
     const onMove = (e: MouseEvent) => {
       x = e.clientX;
       y = e.clientY;
       const target = e.target as HTMLElement | null;
       scale = target?.closest("a, button, [role='button']") ? 1.6 : 1;
-    };
 
-    const loop = () => {
-      ringX += (x - ringX) * 0.16;
-      ringY += (y - ringY) * 0.16;
-      dot.style.transform = `translate(${x - 8}px, ${y - 8}px) scale(${scale})`;
-      ring.style.transform = `translate(${ringX - 16}px, ${ringY - 16}px) scale(${scale})`;
-      raf = requestAnimationFrame(loop);
+      if (!isMoving) {
+        isMoving = true;
+        raf = requestAnimationFrame(loop);
+      }
     };
-    raf = requestAnimationFrame(loop);
 
     window.addEventListener("mousemove", onMove, { passive: true });
     return () => {
