@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "generate:assets": "node scripts/generate-assets.js"
   },
   "dependencies": {
     "@emailjs/nodejs": "^5.0.2",

@@ -1,6 +1,7 @@
 "use client";
 
 import { Menu, X } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -27,14 +28,26 @@ export function Navbar() {
       }`}
     >
       <div className="relative mx-auto flex h-20 max-w-7xl items-center justify-between px-6">
-        {/* Left: Name & Designation */}
-        <Link href="/" className="group z-20 flex flex-col">
-          <span className="text-lg font-bold tracking-tight text-foreground transition-colors group-hover:text-primary md:text-xl">
-            Adnan Bin Farook
-          </span>
-          <span className="font-mono text-xs tracking-wider text-muted transition-colors group-hover:text-foreground">
-            Software Engineer
-          </span>
+        {/* Left: Brand Logo & Name */}
+        <Link href="/" className="group z-20 flex items-center gap-3">
+          <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-2 border-line bg-surface p-1 shadow-[2.5px_2.5px_0px_var(--shadow-color)] transition-all duration-150 group-hover:-translate-x-0.5 group-hover:-translate-y-0.5 group-hover:shadow-[4px_4px_0px_var(--shadow-color)]">
+            <Image
+              src="/abf_logo.png"
+              alt="Adnan Bin Farook Logo"
+              width={36}
+              height={36}
+              className="h-full w-full object-contain"
+              priority
+            />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-lg font-bold tracking-tight text-foreground transition-colors group-hover:text-primary md:text-xl">
+              Adnan Bin Farook
+            </span>
+            <span className="font-mono text-xs tracking-wider text-muted transition-colors group-hover:text-foreground">
+              Software Engineer
+            </span>
+          </div>
         </Link>
 
         {/* Center: Desktop Nav (Pill Layout) */}
