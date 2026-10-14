@@ -43,7 +43,9 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
 .AddDefaultTokenProviders();
 
 // 4. JWT Authentication
-var jwtSecret = builder.Configuration["Jwt:Secret"] ?? "PortfolioSuperSecretKeyThatIsAtLeast32BytesLong!";
+var jwtSecret = builder.Configuration["Jwt:Secret"] 
+    ?? builder.Configuration["JwtSettings:SecretKey"] 
+    ?? "PortfolioSuperSecretKeyThatIsAtLeast32BytesLong!";
 var key = Encoding.UTF8.GetBytes(jwtSecret);
 
 builder.Services.AddAuthentication(options =>

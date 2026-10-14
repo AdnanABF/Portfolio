@@ -29,11 +29,11 @@ public class CloudflareR2StorageService : IStorageService
 
     public PresignedUrlResponse GeneratePresignedUploadUrl(PresignedUrlRequest request)
     {
-        var accountId = _config["R2:AccountId"] ?? "";
-        var accessKeyId = _config["R2:AccessKeyId"] ?? "";
-        var secretAccessKey = _config["R2:SecretAccessKey"] ?? "";
-        var bucketName = _config["R2:BucketName"] ?? "portfolio-media";
-        var publicBaseUrl = _config["R2:PublicUrl"] ?? "https://media.adnanbinfarook.com";
+        var accountId = _config["R2:AccountId"] ?? _config["Storage:AccountId"] ?? "";
+        var accessKeyId = _config["R2:AccessKeyId"] ?? _config["Storage:AccessKeyId"] ?? "";
+        var secretAccessKey = _config["R2:SecretAccessKey"] ?? _config["Storage:SecretAccessKey"] ?? "";
+        var bucketName = _config["R2:BucketName"] ?? _config["Storage:BucketName"] ?? "portfolio-media";
+        var publicBaseUrl = _config["R2:PublicUrl"] ?? _config["Storage:PublicDomain"] ?? "https://media.adnanbinfarook.com";
 
         // Generate sanitized unique key e.g. "projects/1728900000-screenshot.webp"
         var ext = Path.GetExtension(request.FileName);

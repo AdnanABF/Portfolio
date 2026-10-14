@@ -13,3 +13,5 @@ obj/
 *.userosscache
 *.suo
 .idea/
+appsettings.Development.json
+appsettings.*.local.json

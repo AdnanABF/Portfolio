@@ -32,8 +32,12 @@ public static class DbInitializer
             }
 
             // 2. Initial SuperAdmin User
-            var adminEmail = config["Admin:Email"] ?? "adnanabf@gmail.com";
-            var adminPassword = config["Admin:Password"] ?? "Admin@Adnan123!";
+            var adminEmail = config["Admin:Email"] 
+                ?? config["SuperAdmin:Email"] 
+                ?? "adnanabf@gmail.com";
+            var adminPassword = config["Admin:Password"] 
+                ?? config["SuperAdmin:Password"] 
+                ?? "Admin@Adnan123!";
 
             var existingAdmin = await userManager.FindByEmailAsync(adminEmail);
             if (existingAdmin == null)
