@@ -5,6 +5,8 @@ import { CustomCursor } from "@/components/effects/CustomCursor";
 import { Footer } from "@/components/site/Footer";
 import { Navbar } from "@/components/site/Navbar";
 import { SITE_DESCRIPTION, SITE_TITLE, SITE_URL } from "@/lib/site";
+import { CommandPalette } from "@/components/CommandPalette";
+import { LiveHealthWidget } from "@/components/LiveHealthWidget";
 import "./globals.css";
 
 const inter = Inter({
@@ -79,6 +81,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             {children}
           </main>
           <Footer />
+          <CommandPalette />
+          <LiveHealthWidget />
         </Providers>
       </body>
     </html>

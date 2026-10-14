@@ -1,11 +1,18 @@
-import { Briefcase, Calendar } from "lucide-react";
+"use client";
+
+import { Briefcase, Calendar, Edit3 } from "lucide-react";
+import { useState } from "react";
 import { Reveal } from "@/components/effects/Reveal";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { EXPERIENCE } from "@/lib/data";
+import { useAdmin } from "@/components/admin/AdminContext";
 
 export function Experience() {
+  const { isEditMode, openEditor } = useAdmin();
+  const [items, setItems] = useState(EXPERIENCE);
+
   return (
     <section id="experience" className="scroll-mt-24 px-6 py-20 md:px-12">
       <div className="mx-auto max-w-7xl">
@@ -25,7 +32,7 @@ export function Experience() {
           <div className="absolute top-0 left-0 h-full w-px -translate-x-1/2 bg-gradient-to-b from-transparent via-primary/40 to-transparent md:left-1/2" />
 
           <div className="space-y-8">
-            {EXPERIENCE.map((exp, index) => (
+            {items.map((exp, index) => (
               <Reveal key={exp.id} delay={index * 100}>
                 <div
                   className={`relative flex flex-col items-stretch md:flex-row md:items-center ${
@@ -43,7 +50,44 @@ export function Experience() {
                         : "md:pr-12 md:text-right"
                     }`}
                   >
-                    <Card className="p-6">
+                    <Card className="relative p-6">
+                      {isEditMode && (
+                        <button
+                          onClick={() =>
+                            openEditor(
+                              "experience",
+                              exp as unknown as Record<string, unknown>,
+                              (updated) => {
+                                setItems((prev) =>
+                                  prev.map((item) => {
+                                    if (item.id !== exp.id) return item;
+                                    const achievements = Array.isArray(updated.achievements)
+                                      ? (updated.achievements as string[])
+                                      : typeof updated.achievementsText === "string"
+                                      ? updated.achievementsText.split("\n")
+                                      : item.description;
+
+                                    return {
+                                      ...item,
+                                      role: (updated.role as string) || item.role,
+                                      company: (updated.company as string) || item.company,
+                                      period: (updated.period as string) || item.period,
+                                      description: achievements,
+                                    };
+                                  })
+                                );
+                              }
+                            )
+                          }
+                          className={`absolute top-4 z-20 flex items-center gap-1 rounded-lg border-2 border-line bg-accent-mint px-2 py-0.5 font-mono text-xs font-bold text-neutral-950 shadow-[2px_2px_0px_var(--shadow-color)] hover:scale-105 transition-all cursor-pointer ${
+                            index % 2 !== 0 ? "left-4" : "right-4"
+                          }`}
+                        >
+                          <Edit3 className="h-3 w-3" />
+                          <span>Edit</span>
+                        </button>
+                      )}
+
                       <div
                         className={`mb-2 flex items-center gap-2 font-mono text-sm text-primary ${
                           index % 2 !== 0 && "md:justify-end"

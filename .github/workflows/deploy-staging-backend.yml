@@ -1,0 +1,28 @@
+name: Deploy Staging Backend
+
+on:
+  push:
+    branches:
+      - develop
+    paths:
+      - 'server/**'
+      - '.github/workflows/deploy-staging-backend.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Trigger Coolify Staging Backend Deployment
+    runs-on: ubuntu-latest
+    steps:
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v3
+        with:
+          authkey: ${{ secrets.TS_AUTHKEY }}
+
+      - name: Trigger Coolify deployment (staging backend)
+        run: |
+          curl -f -sS -X POST \
+            "${{ secrets.COOLIFY_URL }}/api/v1/deploy" \
+            -H "Authorization: Bearer ${{ secrets.COOLIFY_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"uuid\": \"${{ secrets.COOLIFY_PORTFOLIO_STAGING_BACKEND_UUID }}\", \"force\": false}"

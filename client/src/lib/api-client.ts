@@ -1,54 +1,375 @@
-import { POSTS, PROJECTS, getProjectBySlug } from "./data";
-import type { PostItem, ProjectItem } from "./types";
+import { EXPERIENCE, POSTS, PROJECTS, SKILLS, getProjectBySlug } from "./data";
+import type { ExperienceItem, PostItem, ProjectItem, Skill } from "./types";
 
-/**
- * Backend boundary (see server/README.md).
- *
- * When `NEXT_PUBLIC_API_URL` is set (future Coolify `server/` service),
- * these functions call the remote API. Otherwise they fall back to the
- * local `lib/data.ts` content / internal Server Actions (Step 10).
- *
- * Components must import through here — never from `../server`.
- */
+const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
+// ==========================================
+// Public Content Methods (with graceful fallback)
+// ==========================================
+
+interface ApiProject {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  tags?: string[];
+  githubUrl?: string;
+  liveUrl?: string;
+  heroImageUrl?: string;
+}
+
+interface ApiPost {
+  slug: string;
+  title: string;
+  excerpt: string;
+  publishedAt?: string;
+}
+
+interface ApiExperience {
+  id: string;
+  role: string;
+  company: string;
+  period: string;
+  achievements?: string[];
+}
+
+interface ApiSkill {
+  name: string;
+  category: string;
+}
 
 export async function getProjects(): Promise<ProjectItem[]> {
   if (!API_BASE) return PROJECTS;
-  const res = await fetch(`${API_BASE}/api/projects`, {
-    next: { revalidate: 3600 },
-  });
-  if (!res.ok) throw new Error(`GET /api/projects failed: ${res.status}`);
-  return (await res.json()) as ProjectItem[];
+  try {
+    const res = await fetch(`${API_BASE}/api/projects`, {
+      next: { revalidate: 60 },
+    });
+    if (!res.ok) return PROJECTS;
+    const data: ApiProject[] = await res.json();
+    return data.map((p) => ({
+      id: p.id,
+      slug: p.slug,
+      title: p.title,
+      description: p.description,
+      techStack: p.tags || [],
+      githubUrl: p.githubUrl,
+      liveUrl: p.liveUrl,
+      imageUrl: p.heroImageUrl || "/og-image.png",
+      isPrivate: !p.liveUrl,
+    }));
+  } catch {
+    return PROJECTS;
+  }
 }
 
 export async function getProject(slug: string): Promise<ProjectItem | undefined> {
   if (!API_BASE) return getProjectBySlug(slug);
-  const res = await fetch(`${API_BASE}/api/projects/${slug}`, {
-    next: { revalidate: 3600 },
-  });
-  if (res.status === 404) return undefined;
-  if (!res.ok) throw new Error(`GET /api/projects/${slug} failed: ${res.status}`);
-  return (await res.json()) as ProjectItem;
+  try {
+    const res = await fetch(`${API_BASE}/api/projects/${slug}`, {
+      next: { revalidate: 60 },
+    });
+    if (res.status === 404) return undefined;
+    if (!res.ok) return getProjectBySlug(slug);
+    const p: ApiProject = await res.json();
+    return {
+      id: p.id,
+      slug: p.slug,
+      title: p.title,
+      description: p.description,
+      techStack: p.tags || [],
+      githubUrl: p.githubUrl,
+      liveUrl: p.liveUrl,
+      imageUrl: p.heroImageUrl || "/og-image.png",
+      isPrivate: !p.liveUrl,
+    };
+  } catch {
+    return getProjectBySlug(slug);
+  }
 }
 
 export async function getPosts(): Promise<PostItem[]> {
   if (!API_BASE) return POSTS;
-  const res = await fetch(`${API_BASE}/api/posts`, {
-    next: { revalidate: 3600 },
+  try {
+    const res = await fetch(`${API_BASE}/api/blog`, {
+      next: { revalidate: 60 },
+    });
+    if (!res.ok) return POSTS;
+    const data: ApiPost[] = await res.json();
+    return data.map((p) => ({
+      slug: p.slug,
+      title: p.title,
+      excerpt: p.excerpt,
+      publishedAt: p.publishedAt ? p.publishedAt.split("T")[0] : "",
+    }));
+  } catch {
+    return POSTS;
+  }
+}
+
+export async function getExperience(): Promise<ExperienceItem[]> {
+  if (!API_BASE) return EXPERIENCE;
+  try {
+    const res = await fetch(`${API_BASE}/api/experience`, {
+      next: { revalidate: 60 },
+    });
+    if (!res.ok) return EXPERIENCE;
+    const data: ApiExperience[] = await res.json();
+    return data.map((e) => ({
+      id: e.id,
+      role: e.role,
+      company: e.company,
+      period: e.period,
+      description: e.achievements || [],
+      tech: [],
+    }));
+  } catch {
+    return EXPERIENCE;
+  }
+}
+
+export async function getSkills(): Promise<Skill[]> {
+  if (!API_BASE) return SKILLS;
+  try {
+    const res = await fetch(`${API_BASE}/api/skills`, {
+      next: { revalidate: 60 },
+    });
+    if (!res.ok) return SKILLS;
+    const data: ApiSkill[] = await res.json();
+    return data.map((s) => {
+      const validCategories: Array<"Modern" | "Microsoft" | "Legacy" | "Tools"> = [
+        "Modern",
+        "Microsoft",
+        "Legacy",
+        "Tools",
+      ];
+      const category = validCategories.find(
+        (c) => c.toLowerCase() === s.category.toLowerCase()
+      ) || "Modern";
+
+      return {
+        name: s.name,
+        category,
+        level: 80,
+      };
+    });
+  } catch {
+    return SKILLS;
+  }
+}
+
+export async function getSettings(): Promise<Record<string, string>> {
+  if (!API_BASE) return {};
+  try {
+    const res = await fetch(`${API_BASE}/api/settings`, {
+      next: { revalidate: 60 },
+    });
+    if (!res.ok) return {};
+    return await res.json();
+  } catch {
+    return {};
+  }
+}
+
+export async function getHealth(): Promise<{ status: string; dbLatencyMs: number; uptimeSeconds: number } | null> {
+  if (!API_BASE) return null;
+  try {
+    const res = await fetch(`${API_BASE}/api/health`, { cache: "no-store" });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+// ==========================================
+// Telemetry & Contact
+// ==========================================
+
+export async function trackVisit(path: string, referrer?: string): Promise<void> {
+  if (!API_BASE) return;
+  try {
+    await fetch(`${API_BASE}/api/telemetry/visit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path, referrer }),
+    });
+  } catch {
+    // Silent fail
+  }
+}
+
+export async function trackCvDownload(referrer?: string): Promise<void> {
+  if (!API_BASE) return;
+  try {
+    await fetch(`${API_BASE}/api/telemetry/cv-download`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ referrer }),
+    });
+  } catch {
+    // Silent fail
+  }
+}
+
+export async function submitContact(data: { name: string; email: string; subject: string; message: string }) {
+  const url = API_BASE ? `${API_BASE}/api/contact` : "/api/contact";
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error(`GET /api/posts failed: ${res.status}`);
-  return (await res.json()) as PostItem[];
+  if (!res.ok) throw new Error("Failed to submit inquiry.");
+  return await res.json();
 }
 
-export interface ContactPayload {
-  name: string;
-  email: string;
-  subject: string;
-  message: string;
+// ==========================================
+// Admin & Mutation API
+// ==========================================
+
+export async function apiLogin(email: string, password: string) {
+  if (!API_BASE) throw new Error("API_BASE is not configured.");
+  const res = await fetch(`${API_BASE}/api/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || "Login failed.");
+  }
+  return await res.json();
 }
 
-/** Used by Step 10's Server Action once the remote API exists. */
-export function contactEndpoint(): string {
-  return API_BASE ? `${API_BASE}/api/contact` : "/api/contact";
+export async function getMe(token: string) {
+  if (!API_BASE) return null;
+  const res = await fetch(`${API_BASE}/api/auth/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return null;
+  return await res.json();
+}
+
+export async function updateProject(id: string, dto: Record<string, unknown>, token: string) {
+  if (!API_BASE) throw new Error("API_BASE not configured.");
+  const res = await fetch(`${API_BASE}/api/projects/${id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(dto),
+  });
+  if (!res.ok) throw new Error("Failed to update project.");
+  return await res.json();
+}
+
+export async function updateSetting(key: string, value: string, token: string) {
+  if (!API_BASE) throw new Error("API_BASE not configured.");
+  const res = await fetch(`${API_BASE}/api/settings/${key}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ value }),
+  });
+  if (!res.ok) throw new Error(`Failed to update setting ${key}.`);
+  return await res.json();
+}
+
+export async function updateExperience(id: string, dto: Record<string, unknown>, token: string) {
+  if (!API_BASE) throw new Error("API_BASE not configured.");
+  const res = await fetch(`${API_BASE}/api/experience/${id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(dto),
+  });
+  if (!res.ok) throw new Error("Failed to update experience.");
+  return await res.json();
+}
+
+export async function getPresignedUpload(fileName: string, contentType: string, folder: string, token: string) {
+  if (!API_BASE) throw new Error("API_BASE not configured.");
+  const res = await fetch(`${API_BASE}/api/media/presign`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ fileName, contentType, folder }),
+  });
+  if (!res.ok) throw new Error("Failed to generate upload URL.");
+  return await res.json();
+}
+
+export async function getAdminSessions(token: string) {
+  if (!API_BASE) return [];
+  const res = await fetch(`${API_BASE}/api/admin/sessions`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return [];
+  return await res.json();
+}
+
+export async function revokeSession(id: string, token: string) {
+  if (!API_BASE) throw new Error("API_BASE not configured.");
+  const res = await fetch(`${API_BASE}/api/admin/sessions/${id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error("Failed to revoke session.");
+  return await res.json();
+}
+
+export async function getAdminActivity(token: string) {
+  if (!API_BASE) return [];
+  const res = await fetch(`${API_BASE}/api/admin/activity`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return [];
+  return await res.json();
+}
+
+export async function getAdminSystemLogs(token: string) {
+  if (!API_BASE) return [];
+  const res = await fetch(`${API_BASE}/api/admin/system-logs`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return [];
+  return await res.json();
+}
+
+export async function getAdminAnalytics(token: string) {
+  if (!API_BASE) return null;
+  const res = await fetch(`${API_BASE}/api/telemetry/summary`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return null;
+  return await res.json();
+}
+
+export async function getAdminInquiries(token: string) {
+  if (!API_BASE) return [];
+  const res = await fetch(`${API_BASE}/api/contact/inquiries`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return [];
+  return await res.json();
+}
+
+export async function updateInquiryStatus(id: string, status: string, token: string) {
+  if (!API_BASE) throw new Error("API_BASE not configured.");
+  const res = await fetch(`${API_BASE}/api/contact/inquiries/${id}/status`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(status),
+  });
+  if (!res.ok) throw new Error("Failed to update inquiry status.");
+  return await res.json();
 }
