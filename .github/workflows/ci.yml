@@ -7,6 +7,7 @@ on:
       - master
     paths:
       - 'client/**'
+      - 'server/**'
       - '.github/workflows/ci.yml'
   workflow_dispatch:
 
@@ -14,12 +15,17 @@ jobs:
   validate:
     name: Lint & Build Check
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: client
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Verify .NET Backend Build
+        run: dotnet build server/Portfolio.API.slnx
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -28,11 +34,14 @@ jobs:
           cache: 'npm'
           cache-dependency-path: client/package-lock.json
 
-      - name: Install dependencies
+      - name: Install client dependencies
+        working-directory: client
         run: npm ci
 
-      - name: Run ESLint
+      - name: Run client ESLint
+        working-directory: client
         run: npm run lint
 
-      - name: Verify Production Build
+      - name: Verify client Production Build
+        working-directory: client
         run: npm run build

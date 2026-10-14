@@ -1,5 +1,17 @@
 node_modules/
 dist/
 build/
+.next/
 .env
+.env*.local
 .vscode/
+
+# .NET artifacts
+bin/
+obj/
+*.user
+*.userosscache
+*.suo
+.idea/
+appsettings.Development.json
+appsettings.*.local.json

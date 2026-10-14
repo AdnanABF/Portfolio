@@ -1,16 +1,51 @@
-import { CodeXml, Download, Terminal } from "lucide-react";
-import { Mail } from "lucide-react";
+"use client";
+
+import { useState } from "react";
+import { CodeXml, Download, Edit3, Mail, Terminal } from "lucide-react";
 import Image from "next/image";
 import { ParticleField } from "@/components/effects/ParticleField";
 import { LinkButton } from "@/components/ui/Button";
 import { SOCIALS } from "@/lib/site";
+import { useAdmin } from "@/components/admin/AdminContext";
+import { trackCvDownload } from "@/lib/api-client";
 import { GitHubIcon, LinkedInIcon } from "./SocialIcons";
 
 export function HeroCell() {
+  const { isEditMode, openEditor } = useAdmin();
+  const [photoUrl, setPhotoUrl] = useState("/adnan_photo.webp");
+  const [cvUrl, setCvUrl] = useState("/Adnan_CV.pdf");
+
   return (
     <div className="neo-card relative h-full overflow-hidden p-8 md:p-10">
       <ParticleField />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(35,108,137,0.08),transparent_70%)]" />
+
+      {isEditMode && (
+        <button
+          onClick={() =>
+            openEditor(
+              "setting",
+              {
+                key: "hero_photo_cv",
+                value: JSON.stringify({ photoUrl, cvUrl }, null, 2),
+              },
+              (saved) => {
+                try {
+                  const parsed = JSON.parse(saved.value as string);
+                  if (parsed.photoUrl) setPhotoUrl(parsed.photoUrl);
+                  if (parsed.cvUrl) setCvUrl(parsed.cvUrl);
+                } catch {
+                  // ignore
+                }
+              }
+            )
+          }
+          className="absolute top-4 right-4 z-20 flex items-center gap-1 rounded-lg border-2 border-line bg-accent-mint px-2.5 py-1 font-mono text-[11px] font-bold text-neutral-950 shadow-[2px_2px_0px_var(--shadow-color)] hover:scale-105 transition-all cursor-pointer"
+        >
+          <Edit3 className="h-3 w-3" />
+          <span>Edit Hero & Media</span>
+        </button>
+      )}
 
       <div className="relative flex flex-col items-start gap-6">
         <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
@@ -18,7 +53,7 @@ export function HeroCell() {
             <div className="relative h-full w-full rounded-2xl border-2 border-line bg-surface p-1 shadow-[3px_3px_0px_var(--shadow-color)]">
               <div className="relative h-full w-full overflow-hidden rounded-xl bg-surface">
                 <Image
-                  src="/adnan_photo.webp"
+                  src={photoUrl}
                   alt="Adnan Bin Farook"
                   width={144}
                   height={144}
@@ -55,9 +90,11 @@ export function HeroCell() {
         </p>
 
         <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
-          <LinkButton href="/Adnan_CV.pdf" download>
-            Download CV <Download size={18} />
-          </LinkButton>
+          <div onClick={() => trackCvDownload("hero")}>
+            <LinkButton href={cvUrl} download>
+              Download CV <Download size={18} />
+            </LinkButton>
+          </div>
           <LinkButton href="/#projects" variant="secondary">
             <CodeXml size={18} /> View Projects
           </LinkButton>

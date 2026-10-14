@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, FolderGit2, Lock, X } from "lucide-react";
+import { Edit3, ExternalLink, FolderGit2, Lock, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -8,10 +8,23 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import type { ProjectItem } from "@/lib/types";
+import { useAdmin } from "@/components/admin/AdminContext";
 
 export function ProjectCard({ project }: { project: ProjectItem }) {
+  const { isEditMode, openEditor } = useAdmin();
+
   return (
-    <Card className="group flex h-full flex-col overflow-hidden">
+    <Card className="group relative flex h-full flex-col overflow-hidden">
+      {isEditMode && (
+        <button
+          onClick={() => openEditor("project", project as unknown as Record<string, unknown>)}
+          className="absolute top-3 right-3 z-30 flex items-center gap-1 rounded-lg border-2 border-line bg-accent-mint px-2.5 py-1 font-mono text-xs font-bold text-neutral-950 shadow-[2px_2px_0px_var(--shadow-color)] hover:scale-105 transition-all cursor-pointer"
+        >
+          <Edit3 className="h-3 w-3" />
+          <span>Edit</span>
+        </button>
+      )}
+
       <Link
         href={`/projects/${project.slug}`}
         className="relative block h-48 overflow-hidden"
