@@ -6,12 +6,18 @@ build/
 .env*.local
 .vscode/
 
-# .NET artifacts
+# Visual Studio and .NET artifacts
+.vs/
 bin/
 obj/
+TestResults/
 *.user
 *.userosscache
 *.suo
+*.userprefs
 .idea/
 appsettings.Development.json
 appsettings.*.local.json
+
+# Antigravity / AI Agent local customizations
+.agents/
