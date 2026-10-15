@@ -36,13 +36,23 @@ export function LiveHealthWidget() {
         title="View live system architecture & API latency"
       >
         <span className="relative flex h-2 w-2">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent-mint opacity-75"></span>
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-accent-mint"></span>
+          {health && (
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent-mint opacity-75"></span>
+          )}
+          <span
+            className={`relative inline-flex h-2 w-2 rounded-full ${
+              health ? "bg-accent-mint" : "bg-muted"
+            }`}
+          ></span>
         </span>
         <span>
           .NET API:{" "}
-          <strong className="text-secondary font-bold">
-            {health ? `${health.dbLatencyMs}ms` : "Active"}
+          <strong
+            className={`font-bold ${
+              health ? "text-secondary" : "text-muted"
+            }`}
+          >
+            {health ? `${health.dbLatencyMs}ms` : "Offline"}
           </strong>
         </span>
       </button>
@@ -70,8 +80,12 @@ export function LiveHealthWidget() {
             <div className="mt-4 grid grid-cols-2 gap-3 font-mono text-xs">
               <div className="rounded-xl border-2 border-line bg-surface-2 p-3 shadow-[2px_2px_0px_var(--shadow-color)]">
                 <div className="text-muted">PostgreSQL Latency</div>
-                <div className="mt-1 text-xl font-bold text-secondary">
-                  {health ? `${health.dbLatencyMs} ms` : "Connected"}
+                <div
+                  className={`mt-1 text-xl font-bold ${
+                    health ? "text-secondary" : "text-muted"
+                  }`}
+                >
+                  {health ? `${health.dbLatencyMs} ms` : "Offline"}
                 </div>
               </div>
 
