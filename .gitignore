@@ -18,3 +18,6 @@ TestResults/
 .idea/
 appsettings.Development.json
 appsettings.*.local.json
+
+# Antigravity / AI Agent local customizations
+.agents/
