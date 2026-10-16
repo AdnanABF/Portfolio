@@ -1,17 +1,30 @@
 using System.Text;
+using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using Portfolio.API.Data;
-using Portfolio.API.Data.Entities;
-using Portfolio.API.Middlewares;
-using Portfolio.API.Services;
+using Portfolio.API.Core.Data;
+using Portfolio.API.Core.Entities;
+using Portfolio.API.Features.Admin;
+using Portfolio.API.Features.Auth;
+using Portfolio.API.Features.Blog;
+using Portfolio.API.Features.Contact;
+using Portfolio.API.Features.Experience;
+using Portfolio.API.Features.Health;
+using Portfolio.API.Features.Media;
+using Portfolio.API.Features.Projects;
+using Portfolio.API.Features.Settings;
+using Portfolio.API.Features.Skills;
+using Portfolio.API.Features.Telemetry;
+using Portfolio.API.Infrastructure.ExceptionHandling;
+using Portfolio.API.Infrastructure.Logging;
+using Portfolio.API.Infrastructure.Middlewares;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Serilog Setup
+// 1. Serilog Logging
 builder.Host.UseSerilog((context, services, configuration) => configuration
     .ReadFrom.Configuration(context.Configuration)
     .ReadFrom.Services(services)
@@ -88,23 +101,46 @@ builder.Services.AddCors(options =>
     });
 });
 
-// 6. Application Services
+// 6. ProblemDetails & Global Exception Handling (.NET 10 IExceptionHandler)
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+
+// 7. Output Caching (In-Memory with Tag Eviction)
+builder.Services.AddOutputCache(options =>
+{
+    options.DefaultExpirationTimeSpan = TimeSpan.FromMinutes(10);
+});
+
+// 8. FluentValidation
+builder.Services.AddValidatorsFromAssemblyContaining<Program>();
+
+// 9. Application & Feature Services
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddScoped<IStorageService, CloudflareR2StorageService>();
 builder.Services.AddScoped<IActivityLogger, ActivityLogger>();
 builder.Services.AddScoped<ISessionManager, SessionManager>();
+builder.Services.AddScoped<IProjectService, ProjectService>();
+builder.Services.AddScoped<IExperienceService, ExperienceService>();
+builder.Services.AddScoped<ISkillsService, SkillsService>();
+builder.Services.AddScoped<IBlogService, BlogService>();
+builder.Services.AddScoped<ISettingsService, SettingsService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IAdminService, AdminService>();
+builder.Services.AddScoped<IContactService, ContactService>();
+builder.Services.AddScoped<ITelemetryService, TelemetryService>();
+builder.Services.AddScoped<IMediaService, MediaService>();
+builder.Services.AddScoped<IHealthService, HealthService>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
-// 7. Swagger with JWT Support
+// 10. Swagger with JWT Support
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new Microsoft.OpenApi.OpenApiInfo
     {
         Title = "Adnan Bin Farook Portfolio API",
         Version = "v1",
-        Description = "Enterprise .NET 10 API powering dynamic CMS, in-context live editing, and telemetry."
+        Description = "Enterprise .NET 10 Feature-Layered API powering dynamic CMS, in-context live editing, and telemetry."
     });
 
     c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.OpenApiSecurityScheme
@@ -124,7 +160,7 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
-// 8. Auto-Migration & Seeding on Startup
+// 11. Auto-Migration & Seeding on Startup
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -137,8 +173,9 @@ using (var scope = app.Services.CreateScope())
     await DbInitializer.SeedAsync(dbContext, userManager, roleManager, app.Configuration, logger);
 }
 
-// 9. Pipeline Configuration
-app.UseMiddleware<GlobalExceptionMiddleware>();
+// 12. Middleware Pipeline
+app.UseExceptionHandler();
+app.UseStatusCodePages();
 
 if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("EnableSwagger", true))
 {
@@ -151,8 +188,9 @@ if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("EnableS
 }
 
 app.UseSerilogRequestLogging();
-
 app.UseCors("AllowPortfolio");
+
+app.UseOutputCache();
 
 app.UseAuthentication();
 app.UseMiddleware<SessionTrackingMiddleware>();
