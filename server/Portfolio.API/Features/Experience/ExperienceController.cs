@@ -18,6 +18,7 @@ public class ExperienceController : ControllerBase
         _validator = validator;
     }
 
+    [AllowAnonymous]
     [HttpGet]
     [OutputCache(Tags = ["experience"])]
     public async Task<ActionResult<List<ExperienceDto>>> GetAll(CancellationToken cancellationToken)
@@ -27,7 +28,7 @@ public class ExperienceController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "SuperAdmin,Editor")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult<ExperienceDto>> Create([FromBody] ExperienceUpsertDto dto, CancellationToken cancellationToken)
     {
         var validation = await _validator.ValidateAsync(dto, cancellationToken);
@@ -41,7 +42,7 @@ public class ExperienceController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = "SuperAdmin,Editor")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult<ExperienceDto>> Update(Guid id, [FromBody] ExperienceUpsertDto dto, CancellationToken cancellationToken)
     {
         var validation = await _validator.ValidateAsync(dto, cancellationToken);
@@ -56,7 +57,7 @@ public class ExperienceController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = "SuperAdmin")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         var deleted = await _experienceService.DeleteExperienceAsync(id, cancellationToken);

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Portfolio.API.Features.Health;
@@ -13,6 +14,7 @@ public class HealthController : ControllerBase
         _healthService = healthService;
     }
 
+    [AllowAnonymous]
     [HttpGet]
     public async Task<ActionResult<HealthResponseDto>> GetHealth(CancellationToken cancellationToken)
     {

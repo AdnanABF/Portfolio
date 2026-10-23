@@ -18,6 +18,7 @@ public class ProjectsController : ControllerBase
         _validator = validator;
     }
 
+    [AllowAnonymous]
     [HttpGet]
     [OutputCache(Tags = ["projects"])]
     public async Task<ActionResult<List<ProjectDto>>> GetAll(CancellationToken cancellationToken)
@@ -26,6 +27,7 @@ public class ProjectsController : ControllerBase
         return Ok(projects);
     }
 
+    [AllowAnonymous]
     [HttpGet("{slug}")]
     [OutputCache(Tags = ["projects"])]
     public async Task<ActionResult<ProjectDto>> GetBySlug(string slug, CancellationToken cancellationToken)
@@ -36,7 +38,7 @@ public class ProjectsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "SuperAdmin,Editor")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult<ProjectDto>> Create([FromBody] ProjectUpsertDto dto, CancellationToken cancellationToken)
     {
         var validation = await _validator.ValidateAsync(dto, cancellationToken);
@@ -50,7 +52,7 @@ public class ProjectsController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = "SuperAdmin,Editor")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult<ProjectDto>> Update(Guid id, [FromBody] ProjectUpsertDto dto, CancellationToken cancellationToken)
     {
         var validation = await _validator.ValidateAsync(dto, cancellationToken);
@@ -65,7 +67,7 @@ public class ProjectsController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = "SuperAdmin")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         var deleted = await _projectService.DeleteProjectAsync(id, cancellationToken);

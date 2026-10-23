@@ -1,20 +1,17 @@
 "use client";
 
-import { createContext, useContext, useState, useSyncExternalStore } from "react";
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { AdminBar } from "./AdminBar";
 import { InContextEditDrawer } from "./InContextEditDrawer";
+import { getMe } from "@/lib/api-client";
 
-function subscribe(callback: () => void) {
-  window.addEventListener("storage", callback);
-  return () => window.removeEventListener("storage", callback);
-}
-
-function getSnapshot() {
-  return localStorage.getItem("abf_admin_token");
-}
-
-function getServerSnapshot() {
-  return null;
+interface AdminUser {
+  id: string;
+  email: string;
+  fullName: string;
+  role: string;
+  roles?: string[];
+  isAdmin: boolean;
 }
 
 interface DrawerState {
@@ -26,7 +23,10 @@ interface DrawerState {
 
 interface AdminContextType {
   isAdmin: boolean;
+  user: AdminUser | null;
+  isLoading: boolean;
   isEditMode: boolean;
+  refreshAuth: () => Promise<void>;
   toggleEditMode: () => void;
   openEditor: (
     type: "project" | "experience" | "setting",
@@ -38,21 +38,45 @@ interface AdminContextType {
 
 const AdminContext = createContext<AdminContextType>({
   isAdmin: false,
+  user: null,
+  isLoading: true,
   isEditMode: false,
+  refreshAuth: async () => {},
   toggleEditMode: () => {},
   openEditor: () => {},
   closeEditor: () => {},
 });
 
 export function AdminProvider({ children }: { children: React.ReactNode }) {
-  const token = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
-  const isAdmin = !!token;
+  const [user, setUser] = useState<AdminUser | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [isEditMode, setIsEditMode] = useState(false);
   const [drawer, setDrawer] = useState<DrawerState>({
     isOpen: false,
     type: "setting",
     initialData: null,
   });
+
+  const refreshAuth = useCallback(async () => {
+    try {
+      const data = await getMe();
+      if (data && (data.isAdmin || data.role === "Admin" || data.role === "SuperAdmin")) {
+        setUser(data);
+      } else {
+        setUser(null);
+      }
+    } catch {
+      setUser(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshAuth();
+  }, [refreshAuth]);
+
+  const isAdmin = !!user && (user.isAdmin || user.role === "Admin" || user.role === "SuperAdmin");
 
   const toggleEditMode = () => {
     setIsEditMode((prev) => !prev);
@@ -79,7 +103,10 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     <AdminContext.Provider
       value={{
         isAdmin,
+        user,
+        isLoading,
         isEditMode,
+        refreshAuth,
         toggleEditMode,
         openEditor,
         closeEditor,

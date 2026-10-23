@@ -25,16 +25,14 @@ export default function AdminActivityPage() {
 
   const refreshLogs = async () => {
     setLoading(true);
-    const token = localStorage.getItem("abf_admin_token") || "";
-    const data = await getAdminActivity(token);
+    const data = await getAdminActivity();
     setLogs(data);
     setLoading(false);
   };
 
   useEffect(() => {
     let isMounted = true;
-    const token = localStorage.getItem("abf_admin_token") || "";
-    getAdminActivity(token).then((data) => {
+    getAdminActivity().then((data) => {
       if (isMounted) {
         setLogs(data);
         setLoading(false);

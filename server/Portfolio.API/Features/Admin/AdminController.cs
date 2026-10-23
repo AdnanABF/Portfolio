@@ -6,7 +6,7 @@ namespace Portfolio.API.Features.Admin;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "SuperAdmin")]
+[Authorize(Policy = "AdminOnly")]
 public class AdminController : ControllerBase
 {
     private readonly IAdminService _adminService;
@@ -21,14 +21,18 @@ public class AdminController : ControllerBase
     [HttpGet("sessions")]
     public async Task<ActionResult<List<UserSessionDto>>> GetSessions()
     {
-        var sessions = await _sessionManager.GetActiveSessionsAsync();
+        var sessions = await _sessionManager.GetAdminSessionsAsync();
         return Ok(sessions);
     }
 
     [HttpDelete("sessions/{id:guid}")]
     public async Task<IActionResult> RevokeSession(Guid id)
     {
-        await _sessionManager.RevokeSessionAsync(id);
+        var revoked = await _sessionManager.RevokeSessionAsync(id, requestingUserId: null, isAdmin: true);
+        if (!revoked)
+        {
+            return NotFound(new { message = "Session not found." });
+        }
         return Ok(new { message = "Session revoked successfully." });
     }
 

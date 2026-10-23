@@ -18,6 +18,7 @@ public class SkillsController : ControllerBase
         _validator = validator;
     }
 
+    [AllowAnonymous]
     [HttpGet]
     [OutputCache(Tags = ["skills"])]
     public async Task<ActionResult<List<SkillDto>>> GetAll(CancellationToken cancellationToken)
@@ -27,7 +28,7 @@ public class SkillsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "SuperAdmin,Editor")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult<SkillDto>> Create([FromBody] SkillUpsertDto dto, CancellationToken cancellationToken)
     {
         var validation = await _validator.ValidateAsync(dto, cancellationToken);
@@ -41,7 +42,7 @@ public class SkillsController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = "SuperAdmin,Editor")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult<SkillDto>> Update(Guid id, [FromBody] SkillUpsertDto dto, CancellationToken cancellationToken)
     {
         var validation = await _validator.ValidateAsync(dto, cancellationToken);
@@ -56,7 +57,7 @@ public class SkillsController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = "SuperAdmin")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         var deleted = await _skillsService.DeleteSkillAsync(id, cancellationToken);

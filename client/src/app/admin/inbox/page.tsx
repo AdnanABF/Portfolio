@@ -31,16 +31,14 @@ export default function AdminInboxPage() {
 
   const fetchInquiries = async () => {
     setLoading(true);
-    const token = localStorage.getItem("abf_admin_token") || "";
-    const data = await getAdminInquiries(token);
+    const data = await getAdminInquiries();
     setInquiries(data);
     setLoading(false);
   };
 
   useEffect(() => {
     let isMounted = true;
-    const token = localStorage.getItem("abf_admin_token") || "";
-    getAdminInquiries(token).then((data) => {
+    getAdminInquiries().then((data) => {
       if (isMounted) {
         setInquiries(data);
         setLoading(false);
@@ -54,8 +52,7 @@ export default function AdminInboxPage() {
   const handleStatusChange = async (id: string, newStatus: string) => {
     setUpdatingId(id);
     try {
-      const token = localStorage.getItem("abf_admin_token") || "";
-      await updateInquiryStatus(id, newStatus, token);
+      await updateInquiryStatus(id, newStatus);
       await fetchInquiries();
     } finally {
       setUpdatingId(null);

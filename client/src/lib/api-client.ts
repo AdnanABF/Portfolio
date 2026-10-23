@@ -226,11 +226,15 @@ export async function submitContact(data: { name: string; email: string; subject
 // Admin & Mutation API
 // ==========================================
 
+function resolveUrl(path: string): string {
+  return API_BASE ? `${API_BASE}${path}` : path;
+}
+
 export async function apiLogin(email: string, password: string) {
-  if (!API_BASE) throw new Error("API_BASE is not configured.");
-  const res = await fetch(`${API_BASE}/api/auth/login`, {
+  const res = await fetch(resolveUrl("/api/auth/login"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: JSON.stringify({ email, password }),
   });
   if (!res.ok) {
@@ -240,134 +244,120 @@ export async function apiLogin(email: string, password: string) {
   return await res.json();
 }
 
-export async function getMe(token: string) {
-  if (!API_BASE) return null;
-  const res = await fetch(`${API_BASE}/api/auth/me`, {
-    headers: { Authorization: `Bearer ${token}` },
+export async function apiLogout() {
+  const res = await fetch(resolveUrl("/api/auth/logout"), {
+    method: "POST",
+    credentials: "include",
+  });
+  return res.ok;
+}
+
+export async function getMe() {
+  const res = await fetch(resolveUrl("/api/auth/me"), {
+    credentials: "include",
   });
   if (!res.ok) return null;
   return await res.json();
 }
 
-export async function updateProject(id: string, dto: Record<string, unknown>, token: string) {
-  if (!API_BASE) throw new Error("API_BASE not configured.");
-  const res = await fetch(`${API_BASE}/api/projects/${id}`, {
+export async function updateProject(id: string, dto: Record<string, unknown>) {
+  const res = await fetch(resolveUrl(`/api/projects/${id}`), {
     method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: JSON.stringify(dto),
   });
   if (!res.ok) throw new Error("Failed to update project.");
   return await res.json();
 }
 
-export async function updateSetting(key: string, value: string, token: string) {
-  if (!API_BASE) throw new Error("API_BASE not configured.");
-  const res = await fetch(`${API_BASE}/api/settings/${key}`, {
+export async function updateSetting(key: string, value: string) {
+  const res = await fetch(resolveUrl(`/api/settings/${key}`), {
     method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: JSON.stringify({ value }),
   });
   if (!res.ok) throw new Error(`Failed to update setting ${key}.`);
   return await res.json();
 }
 
-export async function updateExperience(id: string, dto: Record<string, unknown>, token: string) {
-  if (!API_BASE) throw new Error("API_BASE not configured.");
-  const res = await fetch(`${API_BASE}/api/experience/${id}`, {
+export async function updateExperience(id: string, dto: Record<string, unknown>) {
+  const res = await fetch(resolveUrl(`/api/experience/${id}`), {
     method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: JSON.stringify(dto),
   });
   if (!res.ok) throw new Error("Failed to update experience.");
   return await res.json();
 }
 
-export async function getPresignedUpload(fileName: string, contentType: string, folder: string, token: string) {
-  if (!API_BASE) throw new Error("API_BASE not configured.");
-  const res = await fetch(`${API_BASE}/api/media/presign`, {
+export async function getPresignedUpload(fileName: string, contentType: string, folder: string) {
+  const res = await fetch(resolveUrl("/api/media/presign"), {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: JSON.stringify({ fileName, contentType, folder }),
   });
   if (!res.ok) throw new Error("Failed to generate upload URL.");
   return await res.json();
 }
 
-export async function getAdminSessions(token: string) {
-  if (!API_BASE) return [];
-  const res = await fetch(`${API_BASE}/api/admin/sessions`, {
-    headers: { Authorization: `Bearer ${token}` },
+export async function getAdminSessions() {
+  const res = await fetch(resolveUrl("/api/admin/sessions"), {
+    credentials: "include",
   });
   if (!res.ok) return [];
   return await res.json();
 }
 
-export async function revokeSession(id: string, token: string) {
-  if (!API_BASE) throw new Error("API_BASE not configured.");
-  const res = await fetch(`${API_BASE}/api/admin/sessions/${id}`, {
+export async function revokeSession(id: string) {
+  const res = await fetch(resolveUrl(`/api/admin/sessions/${id}`), {
     method: "DELETE",
-    headers: { Authorization: `Bearer ${token}` },
+    credentials: "include",
   });
   if (!res.ok) throw new Error("Failed to revoke session.");
   return await res.json();
 }
 
-export async function getAdminActivity(token: string) {
-  if (!API_BASE) return [];
-  const res = await fetch(`${API_BASE}/api/admin/activity`, {
-    headers: { Authorization: `Bearer ${token}` },
+export async function getAdminActivity() {
+  const res = await fetch(resolveUrl("/api/admin/activity"), {
+    credentials: "include",
   });
   if (!res.ok) return [];
   return await res.json();
 }
 
-export async function getAdminSystemLogs(token: string) {
-  if (!API_BASE) return [];
-  const res = await fetch(`${API_BASE}/api/admin/system-logs`, {
-    headers: { Authorization: `Bearer ${token}` },
+export async function getAdminSystemLogs() {
+  const res = await fetch(resolveUrl("/api/admin/system-logs"), {
+    credentials: "include",
   });
   if (!res.ok) return [];
   return await res.json();
 }
 
-export async function getAdminAnalytics(token: string) {
-  if (!API_BASE) return null;
-  const res = await fetch(`${API_BASE}/api/telemetry/summary`, {
-    headers: { Authorization: `Bearer ${token}` },
+export async function getAdminAnalytics() {
+  const res = await fetch(resolveUrl("/api/telemetry/summary"), {
+    credentials: "include",
   });
   if (!res.ok) return null;
   return await res.json();
 }
 
-export async function getAdminInquiries(token: string) {
-  if (!API_BASE) return [];
-  const res = await fetch(`${API_BASE}/api/contact/inquiries`, {
-    headers: { Authorization: `Bearer ${token}` },
+export async function getAdminInquiries() {
+  const res = await fetch(resolveUrl("/api/contact/inquiries"), {
+    credentials: "include",
   });
   if (!res.ok) return [];
   return await res.json();
 }
 
-export async function updateInquiryStatus(id: string, status: string, token: string) {
-  if (!API_BASE) throw new Error("API_BASE not configured.");
-  const res = await fetch(`${API_BASE}/api/contact/inquiries/${id}/status`, {
+export async function updateInquiryStatus(id: string, status: string) {
+  const res = await fetch(resolveUrl(`/api/contact/inquiries/${id}/status`), {
     method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: JSON.stringify(status),
   });
   if (!res.ok) throw new Error("Failed to update inquiry status.");

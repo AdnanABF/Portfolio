@@ -58,8 +58,7 @@ export function InContextEditDrawer({
     setIsUploading(true);
     setError(null);
     try {
-      const token = localStorage.getItem("abf_admin_token") || "";
-      const presign = await getPresignedUpload(file.name, file.type, folder, token);
+      const presign = await getPresignedUpload(file.name, file.type, folder);
 
       // Direct upload to Cloudflare R2
       const res = await fetch(presign.uploadUrl, {
@@ -84,10 +83,8 @@ export function InContextEditDrawer({
     setError(null);
 
     try {
-      const token = localStorage.getItem("abf_admin_token") || "";
-
       if (type === "project" && formData.id) {
-        await updateProject(formData.id, formData as Record<string, unknown>, token);
+        await updateProject(formData.id, formData as Record<string, unknown>);
       } else if (type === "experience" && formData.id) {
         const payload: Record<string, unknown> = {
           ...formData,
@@ -96,9 +93,9 @@ export function InContextEditDrawer({
             .map((s) => s.trim())
             .filter(Boolean),
         };
-        await updateExperience(formData.id, payload, token);
+        await updateExperience(formData.id, payload);
       } else if (type === "setting" && formData.key && formData.value) {
-        await updateSetting(formData.key, formData.value, token);
+        await updateSetting(formData.key, formData.value);
       }
 
       onSaved(formData as Record<string, unknown>);

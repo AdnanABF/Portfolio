@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -5,12 +6,13 @@ using Portfolio.API.Core.Entities;
 
 namespace Portfolio.API.Core.Data;
 
-public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>
+public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>, IDataProtectionKeyContext
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {
     }
 
+    public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
     public DbSet<UserSession> UserSessions => Set<UserSession>();
     public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
     public DbSet<SystemLog> SystemLogs => Set<SystemLog>();
@@ -39,8 +41,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid
         // User -> Sessions
         builder.Entity<UserSession>(b =>
         {
-            b.HasIndex(s => s.SessionToken).IsUnique();
+            b.HasIndex(s => s.UserId);
             b.HasIndex(s => s.LastActiveAt);
+            b.HasIndex(s => s.ExpiresAt);
             b.HasOne(s => s.User)
              .WithMany(u => u.Sessions)
              .HasForeignKey(s => s.UserId)

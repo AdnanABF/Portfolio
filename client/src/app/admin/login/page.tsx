@@ -20,10 +20,7 @@ export default function AdminLoginPage() {
     setError(null);
 
     try {
-      const data = await apiLogin(email, password);
-      localStorage.setItem("abf_admin_token", data.token);
-      localStorage.setItem("abf_admin_email", data.email);
-      localStorage.setItem("abf_admin_role", data.role);
+      await apiLogin(email, password);
       router.push("/admin");
     } catch (err: unknown) {
       setError(

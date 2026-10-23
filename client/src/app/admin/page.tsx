@@ -15,7 +15,7 @@ import {
   ShieldCheck,
   Users,
 } from "lucide-react";
-import { getAdminAnalytics, getMe } from "@/lib/api-client";
+import { apiLogout, getAdminAnalytics, getMe } from "@/lib/api-client";
 
 interface AdminUserData {
   fullName?: string;
@@ -36,19 +36,14 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     let isMounted = true;
-    const token = localStorage.getItem("abf_admin_token");
-    if (!token) {
-      router.push("/admin/login");
-      return;
-    }
 
-    getMe(token).then((data) => {
+    getMe().then((data) => {
       if (!isMounted) return;
       if (!data) router.push("/admin/login");
       else setUser(data);
     });
 
-    getAdminAnalytics(token).then((data) => {
+    getAdminAnalytics().then((data) => {
       if (isMounted) setAnalytics(data);
     });
 
@@ -57,8 +52,8 @@ export default function AdminDashboardPage() {
     };
   }, [router]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("abf_admin_token");
+  const handleLogout = async () => {
+    await apiLogout();
     router.push("/admin/login");
   };
 

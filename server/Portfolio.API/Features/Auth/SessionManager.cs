@@ -14,56 +14,82 @@ public class SessionManager : ISessionManager
         _context = context;
     }
 
-    public async Task<UserSession> CreateSessionAsync(Guid userId, string token, HttpContext httpContext)
-    {
-        var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-        var userAgent = httpContext.Request.Headers["User-Agent"].ToString() ?? "";
-        var deviceInfo = ParseDeviceInfo(userAgent);
-
-        var session = new UserSession
-        {
-            UserId = userId,
-            SessionToken = token,
-            IpAddress = ip,
-            UserAgent = userAgent.Length > 500 ? userAgent[..500] : userAgent,
-            DeviceInfo = deviceInfo,
-            CreatedAt = DateTime.UtcNow,
-            LastActiveAt = DateTime.UtcNow,
-            IsRevoked = false
-        };
-
-        await _context.UserSessions.AddAsync(session);
-        await _context.SaveChangesAsync();
-        return session;
-    }
-
-    public async Task RevokeSessionAsync(Guid sessionId)
-    {
-        var session = await _context.UserSessions.FindAsync(sessionId);
-        if (session != null)
-        {
-            session.IsRevoked = true;
-            session.RevokedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
-        }
-    }
-
-    public async Task<List<UserSessionDto>> GetActiveSessionsAsync()
+    public async Task<List<UserSessionDto>> GetAdminSessionsAsync()
     {
         return await _context.UserSessions
             .AsNoTracking()
+            .Include(s => s.User)
             .OrderByDescending(s => s.LastActiveAt)
-            .Take(50)
+            .Take(100)
             .Select(s => new UserSessionDto
             {
                 Id = s.Id,
+                UserId = s.UserId,
+                UserEmail = s.User != null ? s.User.Email ?? "" : "",
+                LoginMethod = s.LoginMethod,
                 DeviceInfo = s.DeviceInfo,
                 IpAddress = s.IpAddress,
                 CreatedAt = s.CreatedAt,
                 LastActiveAt = s.LastActiveAt,
-                IsRevoked = s.IsRevoked
+                ExpiresAt = s.ExpiresAt,
+                IsRevoked = s.IsRevoked,
+                IsCurrent = false
             })
             .ToListAsync();
+    }
+
+    public async Task<List<UserSessionDto>> GetUserSessionsAsync(Guid userId, Guid? currentSessionId)
+    {
+        return await _context.UserSessions
+            .AsNoTracking()
+            .Where(s => s.UserId == userId)
+            .OrderByDescending(s => s.LastActiveAt)
+            .Select(s => new UserSessionDto
+            {
+                Id = s.Id,
+                UserId = s.UserId,
+                UserEmail = "",
+                LoginMethod = s.LoginMethod,
+                DeviceInfo = s.DeviceInfo,
+                IpAddress = s.IpAddress,
+                CreatedAt = s.CreatedAt,
+                LastActiveAt = s.LastActiveAt,
+                ExpiresAt = s.ExpiresAt,
+                IsRevoked = s.IsRevoked,
+                IsCurrent = currentSessionId.HasValue && s.Id == currentSessionId.Value
+            })
+            .ToListAsync();
+    }
+
+    public async Task<bool> RevokeSessionAsync(Guid sessionId, Guid? requestingUserId, bool isAdmin)
+    {
+        var session = await _context.UserSessions.FindAsync(sessionId);
+        if (session == null) return false;
+
+        if (!isAdmin && requestingUserId.HasValue && session.UserId != requestingUserId.Value)
+        {
+            return false;
+        }
+
+        session.IsRevoked = true;
+        session.RevokedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task RevokeAllUserSessionsAsync(Guid userId)
+    {
+        var sessions = await _context.UserSessions
+            .Where(s => s.UserId == userId && !s.IsRevoked)
+            .ToListAsync();
+
+        foreach (var s in sessions)
+        {
+            s.IsRevoked = true;
+            s.RevokedAt = DateTime.UtcNow;
+        }
+
+        await _context.SaveChangesAsync();
     }
 
     private static string ParseDeviceInfo(string userAgent)

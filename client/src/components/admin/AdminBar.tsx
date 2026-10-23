@@ -1,21 +1,6 @@
-"use client";
-
-import { useSyncExternalStore } from "react";
 import Link from "next/link";
 import { Edit3, LayoutDashboard, LogOut, ShieldCheck } from "lucide-react";
-
-function subscribe(callback: () => void) {
-  window.addEventListener("storage", callback);
-  return () => window.removeEventListener("storage", callback);
-}
-
-function getSnapshot() {
-  return localStorage.getItem("abf_admin_token");
-}
-
-function getServerSnapshot() {
-  return null;
-}
+import { apiLogout } from "@/lib/api-client";
 
 export function AdminBar({
   onToggleEditMode,
@@ -24,14 +9,10 @@ export function AdminBar({
   onToggleEditMode: () => void;
   isEditMode: boolean;
 }) {
-  const token = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
-
-  const handleLogout = () => {
-    localStorage.removeItem("abf_admin_token");
-    window.location.reload();
+  const handleLogout = async () => {
+    await apiLogout();
+    window.location.href = "/admin/login";
   };
-
-  if (!token) return null;
 
   return (
     <div className="fixed top-0 left-0 right-0 z-50 flex h-10 items-center justify-between border-b-2 border-line bg-surface/95 px-4 font-mono text-xs shadow-[0px_2px_0px_var(--shadow-color)] backdrop-blur-md">

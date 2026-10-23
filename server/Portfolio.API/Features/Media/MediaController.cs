@@ -17,7 +17,7 @@ public class MediaController : ControllerBase
         _validator = validator;
     }
 
-    [Authorize(Roles = "SuperAdmin,Editor")]
+    [Authorize(Policy = "AdminOnly")]
     [HttpPost("presign")]
     public async Task<ActionResult<PresignedUrlResponse>> GetPresignedUrl(
         [FromBody] PresignedUrlRequest request, 

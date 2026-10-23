@@ -18,14 +18,16 @@ public class BlogController : ControllerBase
         _validator = validator;
     }
 
+    [AllowAnonymous]
     [HttpGet]
-    [OutputCache(Tags = ["blog"])]
+    [OutputCache(Tags = ["blog"], VaryByQueryKeys = ["includeDrafts"])]
     public async Task<ActionResult<List<BlogPostDto>>> GetAll([FromQuery] bool includeDrafts = false, CancellationToken cancellationToken = default)
     {
         var posts = await _blogService.GetAllPostsAsync(includeDrafts, cancellationToken);
         return Ok(posts);
     }
 
+    [AllowAnonymous]
     [HttpGet("{slug}")]
     [OutputCache(Tags = ["blog"])]
     public async Task<ActionResult<BlogPostDto>> GetBySlug(string slug, CancellationToken cancellationToken)
@@ -36,7 +38,7 @@ public class BlogController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "SuperAdmin,Editor")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult<BlogPostDto>> Create([FromBody] BlogPostUpsertDto dto, CancellationToken cancellationToken)
     {
         var validation = await _validator.ValidateAsync(dto, cancellationToken);
@@ -50,7 +52,7 @@ public class BlogController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = "SuperAdmin,Editor")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult<BlogPostDto>> Update(Guid id, [FromBody] BlogPostUpsertDto dto, CancellationToken cancellationToken)
     {
         var validation = await _validator.ValidateAsync(dto, cancellationToken);
@@ -65,7 +67,7 @@ public class BlogController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = "SuperAdmin")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         var deleted = await _blogService.DeletePostAsync(id, cancellationToken);

@@ -23,6 +23,25 @@ namespace Portfolio.API.Core.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("FriendlyName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Xml")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("DataProtectionKeys");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", b =>
                 {
                     b.Property<Guid>("Id")
@@ -647,6 +666,9 @@ namespace Portfolio.API.Core.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("IpAddress")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -658,13 +680,13 @@ namespace Portfolio.API.Core.Data.Migrations
                     b.Property<DateTime>("LastActiveAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("LoginMethod")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
                     b.Property<DateTime?>("RevokedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("SessionToken")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
 
                     b.Property<string>("UserAgent")
                         .IsRequired()
@@ -676,10 +698,9 @@ namespace Portfolio.API.Core.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("LastActiveAt");
+                    b.HasIndex("ExpiresAt");
 
-                    b.HasIndex("SessionToken")
-                        .IsUnique();
+                    b.HasIndex("LastActiveAt");
 
                     b.HasIndex("UserId");
 

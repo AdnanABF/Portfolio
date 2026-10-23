@@ -1,10 +1,9 @@
-using Portfolio.API.Core.Entities;
-
 namespace Portfolio.API.Features.Auth;
 
 public interface ISessionManager
 {
-    Task<UserSession> CreateSessionAsync(Guid userId, string token, HttpContext httpContext);
-    Task RevokeSessionAsync(Guid sessionId);
-    Task<List<UserSessionDto>> GetActiveSessionsAsync();
+    Task<List<UserSessionDto>> GetAdminSessionsAsync();
+    Task<List<UserSessionDto>> GetUserSessionsAsync(Guid userId, Guid? currentSessionId);
+    Task<bool> RevokeSessionAsync(Guid sessionId, Guid? requestingUserId, bool isAdmin);
+    Task RevokeAllUserSessionsAsync(Guid userId);
 }

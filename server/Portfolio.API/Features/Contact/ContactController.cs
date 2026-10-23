@@ -1,6 +1,7 @@
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Portfolio.API.Features.Contact;
 
@@ -17,7 +18,10 @@ public class ContactController : ControllerBase
         _validator = validator;
     }
 
+    [AllowAnonymous]
     [HttpPost]
+    [EnableRateLimiting("contact-rate-limit")]
+    [RequestSizeLimit(50_000)]
     public async Task<IActionResult> Submit([FromBody] ContactRequestDto dto, CancellationToken cancellationToken)
     {
         var validation = await _validator.ValidateAsync(dto, cancellationToken);
@@ -31,7 +35,7 @@ public class ContactController : ControllerBase
     }
 
     [HttpGet("inquiries")]
-    [Authorize(Roles = "SuperAdmin,Editor")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult<List<ContactInquiryDto>>> GetInquiries([FromQuery] string? status, CancellationToken cancellationToken)
     {
         var inquiries = await _contactService.GetInquiriesAsync(status, cancellationToken);
@@ -39,7 +43,7 @@ public class ContactController : ControllerBase
     }
 
     [HttpPut("inquiries/{id:guid}/status")]
-    [Authorize(Roles = "SuperAdmin,Editor")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] string status, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(status))

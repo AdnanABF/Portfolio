@@ -22,7 +22,7 @@ public static class DbInitializer
             }
 
             // 1. Roles
-            string[] roles = { "SuperAdmin", "Editor", "Viewer" };
+            string[] roles = { "SuperAdmin", "Admin", "Editor", "Viewer" };
             foreach (var roleName in roles)
             {
                 if (!await roleManager.RoleExistsAsync(roleName))
@@ -31,7 +31,7 @@ public static class DbInitializer
                 }
             }
 
-            // 2. Initial SuperAdmin User
+            // 2. Initial Admin User
             var adminEmail = config["Admin:Email"] 
                 ?? config["SuperAdmin:Email"] 
                 ?? "adnanabf@gmail.com";
@@ -47,7 +47,7 @@ public static class DbInitializer
                     UserName = adminEmail,
                     Email = adminEmail,
                     FullName = "Adnan Bin Farook",
-                    Role = "SuperAdmin",
+                    Role = "Admin",
                     EmailConfirmed = true,
                     CreatedAt = DateTime.UtcNow
                 };
@@ -55,12 +55,24 @@ public static class DbInitializer
                 var result = await userManager.CreateAsync(admin, adminPassword);
                 if (result.Succeeded)
                 {
-                    await userManager.AddToRoleAsync(admin, "SuperAdmin");
-                    logger.LogInformation("Seeded SuperAdmin user: {Email}", adminEmail);
+                    await userManager.AddToRolesAsync(admin, new[] { "Admin", "SuperAdmin" });
+                    logger.LogInformation("Seeded Admin user: {Email}", adminEmail);
                 }
                 else
                 {
-                    logger.LogError("Failed to seed SuperAdmin user: {Errors}", string.Join(", ", result.Errors.Select(e => e.Description)));
+                    logger.LogError("Failed to seed Admin user: {Errors}", string.Join(", ", result.Errors.Select(e => e.Description)));
+                }
+            }
+            else
+            {
+                if (!await userManager.IsInRoleAsync(existingAdmin, "Admin"))
+                {
+                    await userManager.AddToRoleAsync(existingAdmin, "Admin");
+                    logger.LogInformation("Added Admin role to existing admin user: {Email}", adminEmail);
+                }
+                if (!await userManager.IsInRoleAsync(existingAdmin, "SuperAdmin"))
+                {
+                    await userManager.AddToRoleAsync(existingAdmin, "SuperAdmin");
                 }
             }
 

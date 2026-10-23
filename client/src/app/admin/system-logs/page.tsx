@@ -36,16 +36,14 @@ export default function AdminSystemLogsPage() {
 
   const refreshLogs = async () => {
     setLoading(true);
-    const token = localStorage.getItem("abf_admin_token") || "";
-    const data = await getAdminSystemLogs(token);
+    const data = await getAdminSystemLogs();
     setLogs(data);
     setLoading(false);
   };
 
   useEffect(() => {
     let isMounted = true;
-    const token = localStorage.getItem("abf_admin_token") || "";
-    getAdminSystemLogs(token).then((data) => {
+    getAdminSystemLogs().then((data) => {
       if (isMounted) {
         setLogs(data);
         setLoading(false);

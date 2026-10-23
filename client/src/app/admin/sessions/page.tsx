@@ -7,10 +7,11 @@ import { getAdminSessions, revokeSession } from "@/lib/api-client";
 
 interface SessionItem {
   id: string;
+  userId?: string;
+  userEmail?: string;
+  loginMethod?: string;
   ipAddress: string;
   deviceInfo?: string;
-  browser?: string;
-  operatingSystem?: string;
   createdAt: string;
   lastActiveAt: string;
   isOnline: boolean;
@@ -23,16 +24,14 @@ export default function AdminSessionsPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const fetchSessions = async () => {
-    const token = localStorage.getItem("abf_admin_token") || "";
-    const data = await getAdminSessions(token);
+    const data = await getAdminSessions();
     setSessions(data);
     setLoading(false);
   };
 
   useEffect(() => {
     let isMounted = true;
-    const token = localStorage.getItem("abf_admin_token") || "";
-    getAdminSessions(token).then((data) => {
+    getAdminSessions().then((data) => {
       if (isMounted) {
         setSessions(data);
         setLoading(false);
@@ -47,8 +46,7 @@ export default function AdminSessionsPage() {
     if (!confirm("Are you sure you want to terminate this session? The device will be logged out immediately.")) return;
     setActionLoading(id);
     try {
-      const token = localStorage.getItem("abf_admin_token") || "";
-      await revokeSession(id, token);
+      await revokeSession(id);
       await fetchSessions();
     } finally {
       setActionLoading(null);
@@ -96,8 +94,18 @@ export default function AdminSessionsPage() {
                       <Laptop className="h-5 w-5" />
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-bold text-foreground text-sm">{s.deviceInfo || "Web Browser"}</span>
+                        {s.userEmail && (
+                          <span className="font-mono text-xs text-primary font-bold">
+                            ({s.userEmail})
+                          </span>
+                        )}
+                        {s.loginMethod && (
+                          <span className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-muted border border-line">
+                            {s.loginMethod}
+                          </span>
+                        )}
                         {s.isOnline ? (
                           <span className="inline-flex items-center gap-1 rounded-full border border-accent-mint bg-accent-mint/20 px-2 py-0.5 font-mono text-[10px] font-bold text-accent-mint">
                             <span className="h-1.5 w-1.5 rounded-full bg-accent-mint animate-pulse" />

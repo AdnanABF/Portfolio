@@ -18,6 +18,7 @@ public class SettingsController : ControllerBase
         _validator = validator;
     }
 
+    [AllowAnonymous]
     [HttpGet]
     [OutputCache(Tags = ["settings"])]
     public async Task<ActionResult<Dictionary<string, string>>> GetAll(CancellationToken cancellationToken)
@@ -26,6 +27,7 @@ public class SettingsController : ControllerBase
         return Ok(settings);
     }
 
+    [AllowAnonymous]
     [HttpGet("{key}")]
     [OutputCache(Tags = ["settings"])]
     public async Task<ActionResult<string>> GetByKey(string key, CancellationToken cancellationToken)
@@ -35,7 +37,7 @@ public class SettingsController : ControllerBase
     }
 
     [HttpPut("{key}")]
-    [Authorize(Roles = "SuperAdmin,Editor")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<IActionResult> Update(string key, [FromBody] SiteSettingUpdateDto dto, CancellationToken cancellationToken)
     {
         var validation = await _validator.ValidateAsync(dto, cancellationToken);

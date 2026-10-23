@@ -1,9 +1,14 @@
-using System.Text;
+using System.Security.Claims;
+using System.Threading.RateLimiting;
 using FluentValidation;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
 using Portfolio.API.Core.Data;
 using Portfolio.API.Core.Entities;
 using Portfolio.API.Features.Admin;
@@ -19,7 +24,6 @@ using Portfolio.API.Features.Skills;
 using Portfolio.API.Features.Telemetry;
 using Portfolio.API.Infrastructure.ExceptionHandling;
 using Portfolio.API.Infrastructure.Logging;
-using Portfolio.API.Infrastructure.Middlewares;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -31,7 +35,39 @@ builder.Host.UseSerilog((context, services, configuration) => configuration
     .Enrich.FromLogContext()
     .WriteTo.Console());
 
-// 2. Database Connection (PostgreSQL)
+// 2. Forwarded Headers (Trusts reverse proxy only)
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+
+    // Configurable number of proxy hops (e.g. Reverse Proxy + Next.js rewrite / CDN)
+    options.ForwardLimit = builder.Configuration.GetValue<int?>("ForwardedHeaders:ForwardLimit") ?? 2;
+
+    var knownProxies = builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>();
+    if (knownProxies != null && knownProxies.Length > 0)
+    {
+        options.KnownProxies.Clear();
+        foreach (var proxy in knownProxies)
+        {
+            if (System.Net.IPAddress.TryParse(proxy, out var ip))
+                options.KnownProxies.Add(ip);
+        }
+    }
+
+    var knownNetworks = builder.Configuration.GetSection("ForwardedHeaders:KnownNetworks").Get<string[]>();
+    if (knownNetworks != null && knownNetworks.Length > 0)
+    {
+        options.KnownIPNetworks.Clear();
+        foreach (var network in knownNetworks)
+        {
+            var parts = network.Split('/');
+            if (parts.Length == 2 && System.Net.IPAddress.TryParse(parts[0], out var prefix) && int.TryParse(parts[1], out var prefixLength))
+                options.KnownIPNetworks.Add(new System.Net.IPNetwork(prefix, prefixLength));
+        }
+    }
+});
+
+// 3. Database Connection (PostgreSQL)
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? "Host=localhost;Port=5432;Database=portfolio_dev;Username=postgres;Password=postgres";
 
@@ -40,7 +76,12 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString);
 });
 
-// 3. Identity Configuration
+// 4. Data Protection Keys in PostgreSQL
+builder.Services.AddDataProtection()
+    .PersistKeysToDbContext<AppDbContext>()
+    .SetApplicationName("PortfolioApp");
+
+// 5. Identity Configuration
 builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
 {
     options.Password.RequireDigit = true;
@@ -55,34 +96,112 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
 .AddEntityFrameworkStores<AppDbContext>()
 .AddDefaultTokenProviders();
 
-// 4. JWT Authentication
-var jwtSecret = builder.Configuration["Jwt:Secret"] 
-    ?? builder.Configuration["JwtSettings:SecretKey"] 
-    ?? "PortfolioSuperSecretKeyThatIsAtLeast32BytesLong!";
-var key = Encoding.UTF8.GetBytes(jwtSecret);
+// 6. Identity Application Cookie
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+        ? CookieSecurePolicy.SameAsRequest
+        : CookieSecurePolicy.Always;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.Name = builder.Environment.IsDevelopment()
+        ? "portfolio_session"
+        : "__Host-portfolio_session";
+    options.SlidingExpiration = true;
+    options.ExpireTimeSpan = TimeSpan.FromDays(14);
 
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
-.AddJwtBearer(options =>
-{
-    options.RequireHttpsMetadata = false;
-    options.SaveToken = true;
-    options.TokenValidationParameters = new TokenValidationParameters
+    options.Events.OnRedirectToLogin = context =>
     {
-        ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(key),
-        ValidateIssuer = false,
-        ValidateAudience = false,
-        ClockSkew = TimeSpan.Zero
+        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        return Task.CompletedTask;
+    };
+    options.Events.OnRedirectToAccessDenied = context =>
+    {
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        return Task.CompletedTask;
+    };
+    options.Events.OnValidatePrincipal = async context =>
+    {
+        // 1. Run Identity's built-in security stamp check
+        await SecurityStampValidator.ValidatePrincipalAsync(context);
+        if (context.Principal == null)
+        {
+            return;
+        }
+
+        // 2. Read sid claim
+        var sidClaim = context.Principal.FindFirst("sid")?.Value;
+        if (!Guid.TryParse(sidClaim, out var sessionId))
+        {
+            context.RejectPrincipal();
+            await context.HttpContext.SignOutAsync();
+            return;
+        }
+
+        // 3. Load session row by primary key
+        var db = context.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+        var session = await db.UserSessions.FindAsync(sessionId);
+        if (session == null || session.IsRevoked || session.ExpiresAt < DateTime.UtcNow)
+        {
+            context.RejectPrincipal();
+            await context.HttpContext.SignOutAsync();
+            return;
+        }
+
+        // 4. Update LastActiveAt and extend ExpiresAt if older than 5 minutes
+        if (DateTime.UtcNow - session.LastActiveAt > TimeSpan.FromMinutes(5))
+        {
+            session.LastActiveAt = DateTime.UtcNow;
+            session.ExpiresAt = DateTime.UtcNow.AddDays(14);
+            await db.SaveChangesAsync();
+        }
     };
 });
 
-builder.Services.AddAuthorization();
+// 7. Authorization (AdminOnly Policy & Fallback)
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("AdminOnly", policy => policy.RequireRole("SuperAdmin", "Admin"));
+    options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireRole("SuperAdmin", "Admin").Build();
+});
 
-// 5. CORS Policies
+// 8. Built-in Rate Limiting
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    options.AddPolicy("auth-rate-limit", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(15),
+                QueueLimit = 0
+            }));
+
+    options.AddPolicy("contact-rate-limit", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 3,
+                Window = TimeSpan.FromMinutes(10),
+                QueueLimit = 0
+            }));
+
+    options.AddPolicy("telemetry-rate-limit", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 60,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
+});
+
+// 9. CORS Policies (Tightened to known origins)
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? new[]
 {
     "http://localhost:3000",
@@ -101,20 +220,20 @@ builder.Services.AddCors(options =>
     });
 });
 
-// 6. ProblemDetails & Global Exception Handling (.NET 10 IExceptionHandler)
+// 10. ProblemDetails & Global Exception Handling
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
-// 7. Output Caching (In-Memory with Tag Eviction)
+// 11. Output Caching (In-Memory with Tag Eviction)
 builder.Services.AddOutputCache(options =>
 {
     options.DefaultExpirationTimeSpan = TimeSpan.FromMinutes(10);
 });
 
-// 8. FluentValidation
+// 12. FluentValidation
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
-// 9. Application & Feature Services
+// 13. Application & Feature Services
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IActivityLogger, ActivityLogger>();
 builder.Services.AddScoped<ISessionManager, SessionManager>();
@@ -133,34 +252,20 @@ builder.Services.AddScoped<IHealthService, HealthService>();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
-// 10. Swagger with JWT Support
+// 14. Swagger Documentation
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new Microsoft.OpenApi.OpenApiInfo
     {
         Title = "Adnan Bin Farook Portfolio API",
         Version = "v1",
-        Description = "Enterprise .NET 10 Feature-Layered API powering dynamic CMS, in-context live editing, and telemetry."
-    });
-
-    c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.OpenApiSecurityScheme
-    {
-        Description = "JWT Authorization header using the Bearer scheme. Example: \"Bearer {token}\"",
-        Name = "Authorization",
-        In = Microsoft.OpenApi.ParameterLocation.Header,
-        Type = Microsoft.OpenApi.SecuritySchemeType.ApiKey,
-        Scheme = "Bearer"
-    });
-
-    c.AddSecurityRequirement(document => new Microsoft.OpenApi.OpenApiSecurityRequirement
-    {
-        [new Microsoft.OpenApi.OpenApiSecuritySchemeReference("Bearer", document)] = new List<string>()
+        Description = "ASP.NET Core Web API powering dynamic CMS, live editing, and telemetry."
     });
 });
 
 var app = builder.Build();
 
-// 11. Auto-Migration & Seeding on Startup
+// 15. Auto-Migration & Seeding on Startup
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -173,11 +278,12 @@ using (var scope = app.Services.CreateScope())
     await DbInitializer.SeedAsync(dbContext, userManager, roleManager, app.Configuration, logger);
 }
 
-// 12. Middleware Pipeline
+// 16. Middleware Pipeline
+app.UseForwardedHeaders();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 
-if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("EnableSwagger", true))
+if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("EnableSwagger", false))
 {
     app.UseSwagger();
     app.UseSwaggerUI(c =>
@@ -189,13 +295,16 @@ if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("EnableS
 
 app.UseSerilogRequestLogging();
 app.UseCors("AllowPortfolio");
+app.UseRateLimiter();
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.UseOutputCache();
 
-app.UseAuthentication();
-app.UseMiddleware<SessionTrackingMiddleware>();
-app.UseAuthorization();
-
+app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow })).AllowAnonymous();
 app.MapControllers();
 
 app.Run();
+
+public partial class Program { }
