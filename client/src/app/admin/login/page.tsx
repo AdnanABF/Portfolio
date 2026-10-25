@@ -1,19 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Eye, EyeOff, KeyRound, Loader2, Lock, ShieldCheck } from "lucide-react";
 import { apiLogin } from "@/lib/api-client";
+import { useAdmin } from "@/components/admin/AdminContext";
 import { Button } from "@/components/ui/Button";
 
 export default function AdminLoginPage() {
+  const { isAdmin, user, isLoading: authLoading, refreshAuth } = useAdmin();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+
+  // Redirect already authenticated users away from the login screen
+  useEffect(() => {
+    if (!authLoading && isAdmin && user) {
+      router.replace("/admin");
+    }
+  }, [authLoading, isAdmin, user, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,7 +31,19 @@ export default function AdminLoginPage() {
 
     try {
       await apiLogin(email, password);
-      router.push("/admin");
+      // Synchronously refresh auth context so the header and navbar update immediately
+      await refreshAuth();
+
+      // Check for return URL parameter
+      let destination = "/admin";
+      if (typeof window !== "undefined") {
+        const from = new URLSearchParams(window.location.search).get("from");
+        if (from && from.startsWith("/admin") && from !== "/admin/login") {
+          destination = from;
+        }
+      }
+
+      router.push(destination);
     } catch (err: unknown) {
       setError(
         err instanceof Error
@@ -33,6 +54,18 @@ export default function AdminLoginPage() {
       setIsLoading(false);
     }
   };
+
+  // Prevent flash of login form while verifying existing session or if already authenticated
+  if (authLoading || (isAdmin && user)) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+        <div className="flex flex-col items-center gap-3 font-mono text-xs text-muted">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <span>Verifying admin session...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4 pt-28 pb-16">

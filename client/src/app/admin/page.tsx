@@ -11,15 +11,12 @@ import {
   Eye,
   FolderGit2,
   Inbox,
+  Loader2,
   ShieldCheck,
   Users,
 } from "lucide-react";
-import { getAdminAnalytics, getMe } from "@/lib/api-client";
-
-interface AdminUserData {
-  fullName?: string;
-  email?: string;
-}
+import { getAdminAnalytics } from "@/lib/api-client";
+import { useAdmin } from "@/components/admin/AdminContext";
 
 interface AnalyticsData {
   totalPageViews?: number;
@@ -29,19 +26,17 @@ interface AnalyticsData {
 }
 
 export default function AdminDashboardPage() {
-  const [user, setUser] = useState<AdminUserData | null>(null);
+  const { user, isAdmin, isLoading: authLoading } = useAdmin();
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const router = useRouter();
 
   useEffect(() => {
+    if (!authLoading && (!isAdmin || !user)) {
+      router.push("/admin/login");
+      return;
+    }
+
     let isMounted = true;
-
-    getMe().then((data) => {
-      if (!isMounted) return;
-      if (!data) router.push("/admin/login");
-      else setUser(data);
-    });
-
     getAdminAnalytics().then((data) => {
       if (isMounted) setAnalytics(data);
     });
@@ -49,7 +44,18 @@ export default function AdminDashboardPage() {
     return () => {
       isMounted = false;
     };
-  }, [router]);
+  }, [authLoading, isAdmin, user, router]);
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+        <div className="flex flex-col items-center gap-3 font-mono text-xs text-muted">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <span>Loading admin dashboard...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pt-28 pb-16 px-4 sm:px-8">
