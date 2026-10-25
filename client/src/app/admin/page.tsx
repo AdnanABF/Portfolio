@@ -11,11 +11,10 @@ import {
   Eye,
   FolderGit2,
   Inbox,
-  LogOut,
   ShieldCheck,
   Users,
 } from "lucide-react";
-import { apiLogout, getAdminAnalytics, getMe } from "@/lib/api-client";
+import { getAdminAnalytics, getMe } from "@/lib/api-client";
 
 interface AdminUserData {
   fullName?: string;
@@ -51,11 +50,6 @@ export default function AdminDashboardPage() {
       isMounted = false;
     };
   }, [router]);
-
-  const handleLogout = async () => {
-    await apiLogout();
-    router.push("/admin/login");
-  };
 
   return (
     <div className="min-h-screen bg-background pt-28 pb-16 px-4 sm:px-8">

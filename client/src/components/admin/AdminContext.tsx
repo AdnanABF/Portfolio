@@ -17,6 +17,7 @@ interface DrawerState {
   isOpen: boolean;
   type: "project" | "experience" | "setting" | "skill";
   initialData: Record<string, unknown> | null;
+  drawerId?: string;
   onSaved?: (data: Record<string, unknown>) => void;
 }
 
@@ -70,10 +71,28 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false);
     }
   }, []);
-
   useEffect(() => {
-    refreshAuth();
-  }, [refreshAuth]);
+    let isMounted = true;
+    getMe()
+      .then((data) => {
+        if (!isMounted) return;
+        if (data && (data.isAdmin || data.role === "Admin" || data.role === "SuperAdmin")) {
+          setUser(data);
+        } else {
+          setUser(null);
+        }
+      })
+      .catch(() => {
+        if (isMounted) setUser(null);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const isAdmin = !!user && (user.isAdmin || user.role === "Admin" || user.role === "SuperAdmin");
 
@@ -86,11 +105,13 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     initialData: Record<string, unknown>,
     onSaved?: (data: Record<string, unknown>) => void
   ) => {
+    const rawId = initialData.id ?? initialData.key ?? initialData.name ?? Date.now();
     setDrawer({
       isOpen: true,
       type,
       initialData,
       onSaved,
+      drawerId: String(rawId),
     });
   };
 
@@ -114,7 +135,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       {children}
       {drawer.isOpen && drawer.initialData && (
         <InContextEditDrawer
-          key={`${drawer.type}-${drawer.initialData.id || drawer.initialData.key || drawer.initialData.name || Date.now()}`}
+          key={`${drawer.type}-${drawer.drawerId}`}
           isOpen={drawer.isOpen}
           type={drawer.type}
           initialData={drawer.initialData}

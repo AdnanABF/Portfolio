@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Check, FileText, ImageIcon, Loader2, UploadCloud, X } from "lucide-react";
 import Image from "next/image";
 import {
@@ -94,10 +94,6 @@ export function InContextEditDrawer({
   const [uploadingField, setUploadingField] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setFormData(parseInitialFormData(initialData));
-  }, [initialData]);
 
   if (!isOpen) return null;
 
