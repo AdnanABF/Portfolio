@@ -24,6 +24,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid
     public DbSet<Skill> Skills => Set<Skill>();
     public DbSet<SiteSetting> SiteSettings => Set<SiteSetting>();
     public DbSet<ContactInquiry> ContactInquiries => Set<ContactInquiry>();
+    public DbSet<MediaAsset> MediaAssets => Set<MediaAsset>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -60,17 +61,27 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid
              .OnDelete(DeleteBehavior.SetNull);
         });
 
+        // MediaAssets index
+        builder.Entity<MediaAsset>(b =>
+        {
+            b.HasIndex(m => m.Category);
+            b.HasIndex(m => m.EntityId);
+            b.HasIndex(m => m.CreatedAt);
+        });
+
         // Indexes for performance
         builder.Entity<Project>(b =>
         {
             b.HasIndex(p => p.Slug).IsUnique();
             b.HasIndex(p => p.SortOrder);
+            b.HasIndex(p => p.IsPublished);
         });
 
         builder.Entity<BlogPost>(b =>
         {
             b.HasIndex(p => p.Slug).IsUnique();
             b.HasIndex(p => p.PublishedAt);
+            b.HasIndex(p => p.IsPublished);
         });
 
         builder.Entity<Experience>(b =>

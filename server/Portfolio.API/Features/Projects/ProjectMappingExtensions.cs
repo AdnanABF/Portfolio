@@ -19,6 +19,7 @@ public static class ProjectMappingExtensions
             LiveUrl = project.LiveUrl,
             GithubUrl = project.GithubUrl,
             IsFeatured = project.IsFeatured,
+            IsPublished = project.IsPublished,
             SortOrder = project.SortOrder,
             KeyMetricsJson = project.KeyMetricsJson,
             ContentMarkdown = project.ContentMarkdown,
@@ -40,6 +41,7 @@ public static class ProjectMappingExtensions
             LiveUrl = dto.LiveUrl,
             GithubUrl = dto.GithubUrl,
             IsFeatured = dto.IsFeatured,
+            IsPublished = dto.IsPublished,
             SortOrder = dto.SortOrder,
             KeyMetricsJson = dto.KeyMetricsJson,
             ContentMarkdown = dto.ContentMarkdown,
@@ -60,6 +62,7 @@ public static class ProjectMappingExtensions
         project.LiveUrl = dto.LiveUrl;
         project.GithubUrl = dto.GithubUrl;
         project.IsFeatured = dto.IsFeatured;
+        project.IsPublished = dto.IsPublished;
         project.SortOrder = dto.SortOrder;
         project.KeyMetricsJson = dto.KeyMetricsJson;
         project.ContentMarkdown = dto.ContentMarkdown;

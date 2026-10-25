@@ -21,20 +21,30 @@ public class ProjectService : IProjectService
         _cacheStore = cacheStore;
     }
 
-    public async Task<List<ProjectDto>> GetAllProjectsAsync(CancellationToken cancellationToken = default)
+    public async Task<List<ProjectDto>> GetAllProjectsAsync(bool includeDrafts = false, CancellationToken cancellationToken = default)
     {
-        return await _context.Projects
-            .AsNoTracking()
+        var query = _context.Projects.AsNoTracking();
+        if (!includeDrafts)
+        {
+            query = query.Where(p => p.IsPublished);
+        }
+
+        return await query
             .OrderBy(p => p.SortOrder)
             .ThenByDescending(p => p.CreatedAt)
             .Select(p => p.ToDto())
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<ProjectDto?> GetProjectBySlugAsync(string slug, CancellationToken cancellationToken = default)
+    public async Task<ProjectDto?> GetProjectBySlugAsync(string slug, bool includeDrafts = false, CancellationToken cancellationToken = default)
     {
-        var project = await _context.Projects
-            .AsNoTracking()
+        var query = _context.Projects.AsNoTracking();
+        if (!includeDrafts)
+        {
+            query = query.Where(p => p.IsPublished);
+        }
+
+        var project = await query
             .FirstOrDefaultAsync(p => p.Slug.ToLower() == slug.ToLower(), cancellationToken);
 
         return project?.ToDto();

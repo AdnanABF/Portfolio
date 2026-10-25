@@ -21,25 +21,28 @@ public class ProjectsController : ControllerBase
     [AllowAnonymous]
     [HttpGet]
     [OutputCache(Tags = ["projects"])]
-    public async Task<ActionResult<List<ProjectDto>>> GetAll(CancellationToken cancellationToken)
+    public async Task<ActionResult<List<ProjectDto>>> GetAll([FromQuery] bool includeDrafts = false, CancellationToken cancellationToken = default)
     {
-        var projects = await _projectService.GetAllProjectsAsync(cancellationToken);
+        var isAdmin = User.Identity?.IsAuthenticated == true && (User.IsInRole("Admin") || User.IsInRole("SuperAdmin"));
+        var allowedIncludeDrafts = includeDrafts && isAdmin;
+        var projects = await _projectService.GetAllProjectsAsync(allowedIncludeDrafts, cancellationToken);
         return Ok(projects);
     }
 
     [AllowAnonymous]
     [HttpGet("{slug}")]
     [OutputCache(Tags = ["projects"])]
-    public async Task<ActionResult<ProjectDto>> GetBySlug(string slug, CancellationToken cancellationToken)
+    public async Task<ActionResult<ProjectDto>> GetBySlug(string slug, CancellationToken cancellationToken = default)
     {
-        var project = await _projectService.GetProjectBySlugAsync(slug, cancellationToken);
+        var isAdmin = User.Identity?.IsAuthenticated == true && (User.IsInRole("Admin") || User.IsInRole("SuperAdmin"));
+        var project = await _projectService.GetProjectBySlugAsync(slug, isAdmin, cancellationToken);
         if (project == null) return NotFound();
         return Ok(project);
     }
 
     [HttpPost]
     [Authorize(Policy = "AdminOnly")]
-    public async Task<ActionResult<ProjectDto>> Create([FromBody] ProjectUpsertDto dto, CancellationToken cancellationToken)
+    public async Task<ActionResult<ProjectDto>> Create([FromBody] ProjectUpsertDto dto, CancellationToken cancellationToken = default)
     {
         var validation = await _validator.ValidateAsync(dto, cancellationToken);
         if (!validation.IsValid)
@@ -53,7 +56,7 @@ public class ProjectsController : ControllerBase
 
     [HttpPut("{id:guid}")]
     [Authorize(Policy = "AdminOnly")]
-    public async Task<ActionResult<ProjectDto>> Update(Guid id, [FromBody] ProjectUpsertDto dto, CancellationToken cancellationToken)
+    public async Task<ActionResult<ProjectDto>> Update(Guid id, [FromBody] ProjectUpsertDto dto, CancellationToken cancellationToken = default)
     {
         var validation = await _validator.ValidateAsync(dto, cancellationToken);
         if (!validation.IsValid)
@@ -68,7 +71,7 @@ public class ProjectsController : ControllerBase
 
     [HttpDelete("{id:guid}")]
     [Authorize(Policy = "AdminOnly")]
-    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken = default)
     {
         var deleted = await _projectService.DeleteProjectAsync(id, cancellationToken);
         if (!deleted) return NotFound();

@@ -24,6 +24,7 @@ interface ApiProject {
   githubUrl?: string;
   liveUrl?: string;
   heroImageUrl?: string;
+  isPublished?: boolean;
 }
 
 interface ApiPost {
@@ -64,6 +65,7 @@ export async function getProjects(): Promise<ProjectItem[]> {
       liveUrl: p.liveUrl,
       imageUrl: p.heroImageUrl || "/og-image.png",
       isPrivate: !p.liveUrl,
+      isPublished: p.isPublished ?? true,
     }));
   } catch {
     return [];
@@ -87,6 +89,7 @@ export async function getProject(slug: string): Promise<ProjectItem | undefined>
       liveUrl: p.liveUrl,
       imageUrl: p.heroImageUrl || "/og-image.png",
       isPrivate: !p.liveUrl,
+      isPublished: p.isPublished ?? true,
     };
   } catch {
     return undefined;
@@ -348,15 +351,55 @@ export async function deleteSkill(id: string) {
   return true;
 }
 
-export async function getPresignedUpload(fileName: string, contentType: string, folder: string) {
-  const res = await fetch(resolveUrl("/api/media/presign"), {
+export interface UploadMediaResponse {
+  id: string;
+  fileName: string;
+  contentType: string;
+  fileSizeBytes: number;
+  url: string;
+  category: string;
+  accessPolicy: string;
+  createdAt: string;
+}
+
+export async function uploadMedia(
+  file: File,
+  category = "general",
+  entityId?: string,
+  entityType?: string,
+  accessPolicy = "Inherit"
+): Promise<UploadMediaResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("category", category);
+  if (entityId) formData.append("entityId", entityId);
+  if (entityType) formData.append("entityType", entityType);
+  if (accessPolicy) formData.append("accessPolicy", accessPolicy);
+
+  const res = await fetch(resolveUrl("/api/media/upload"), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     credentials: "include",
-    body: JSON.stringify({ fileName, contentType, folder }),
+    body: formData,
   });
-  if (!res.ok) throw new Error("Failed to generate upload URL.");
-  return await res.json();
+
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}));
+    const message =
+      errorBody.message ||
+      (errorBody.errors ? Object.values(errorBody.errors).flat().join(" ") : null) ||
+      "Failed to upload media.";
+    throw new Error(message);
+  }
+
+  const data: UploadMediaResponse = await res.json();
+  const publicUrl = data.url.startsWith("/api/media/")
+    ? data.url.replace(/^\/api/, "")
+    : data.url;
+
+  return {
+    ...data,
+    url: publicUrl,
+  };
 }
 
 export async function getAdminSessions() {

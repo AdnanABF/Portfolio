@@ -33,6 +33,8 @@ public class Project
 
     public bool IsFeatured { get; set; } = false;
 
+    public bool IsPublished { get; set; } = true;
+
     public int SortOrder { get; set; } = 0;
 
     /// <summary>

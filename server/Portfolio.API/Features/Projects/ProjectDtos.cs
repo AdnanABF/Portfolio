@@ -13,6 +13,7 @@ public class ProjectDto
     public string LiveUrl { get; set; } = string.Empty;
     public string GithubUrl { get; set; } = string.Empty;
     public bool IsFeatured { get; set; }
+    public bool IsPublished { get; set; } = true;
     public int SortOrder { get; set; }
     public string? KeyMetricsJson { get; set; }
     public string ContentMarkdown { get; set; } = string.Empty;
@@ -31,6 +32,7 @@ public class ProjectUpsertDto
     public string LiveUrl { get; set; } = string.Empty;
     public string GithubUrl { get; set; } = string.Empty;
     public bool IsFeatured { get; set; }
+    public bool IsPublished { get; set; } = true;
     public int SortOrder { get; set; }
     public string? KeyMetricsJson { get; set; }
     public string ContentMarkdown { get; set; } = string.Empty;

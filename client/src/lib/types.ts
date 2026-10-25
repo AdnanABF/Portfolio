@@ -25,6 +25,7 @@ export interface ProjectItem {
   liveUrl?: string;
   imageUrl: string;
   isPrivate?: boolean;
+  isPublished?: boolean;
 }
 
 export interface PostItem {
