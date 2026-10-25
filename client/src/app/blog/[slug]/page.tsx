@@ -3,8 +3,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAllPosts, getPost } from "@/lib/posts";
 
-export function generateStaticParams() {
-  return getAllPosts().map((p) => ({ slug: p.slug }));
+export async function generateStaticParams() {
+  const posts = await getAllPosts();
+  return posts.map((p) => ({ slug: p.slug }));
 }
 
 export async function generateMetadata({
@@ -13,7 +14,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const post = getPost(slug);
+  const post = await getPost(slug);
   if (!post) return { title: "Post not found" };
   return {
     title: `${post.meta.title} | Adnan Bin Farook`,
@@ -23,6 +24,7 @@ export async function generateMetadata({
 }
 
 function formatDate(iso: string) {
+  if (!iso) return "";
   return new Date(`${iso}T00:00:00`).toLocaleDateString("en-US", {
     year: "numeric",
     month: "long",
@@ -36,8 +38,8 @@ export default async function BlogPostPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const post = getPost(slug);
-  if (!post) notFound();
+  const post = await getPost(slug);
+  if (!post || !post.Content) notFound();
   const { Content } = post;
 
   return (

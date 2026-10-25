@@ -1,19 +1,38 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CodeXml, Download, Edit3, Mail, Terminal } from "lucide-react";
 import Image from "next/image";
 import { ParticleField } from "@/components/effects/ParticleField";
 import { LinkButton } from "@/components/ui/Button";
 import { SOCIALS } from "@/lib/site";
 import { useAdmin } from "@/components/admin/AdminContext";
-import { trackCvDownload } from "@/lib/api-client";
+import { getSettings, trackCvDownload } from "@/lib/api-client";
 import { GitHubIcon, LinkedInIcon } from "./SocialIcons";
 
 export function HeroCell() {
   const { isEditMode, openEditor } = useAdmin();
   const [photoUrl, setPhotoUrl] = useState("/adnan_photo.webp");
-  const [cvUrl, setCvUrl] = useState("/Adnan_CV.pdf");
+  const [cvUrl, setCvUrl] = useState<string>("");
+
+  useEffect(() => {
+    let isMounted = true;
+    getSettings().then((settings) => {
+      if (!isMounted) return;
+      if (settings.hero_photo_cv) {
+        try {
+          const parsed = JSON.parse(settings.hero_photo_cv);
+          if (parsed.photoUrl) setPhotoUrl(parsed.photoUrl);
+          if (parsed.cvUrl) setCvUrl(parsed.cvUrl);
+        } catch {
+          // ignore
+        }
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   return (
     <div className="neo-card relative h-full overflow-hidden p-8 md:p-10">
@@ -90,11 +109,13 @@ export function HeroCell() {
         </p>
 
         <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
-          <div onClick={() => trackCvDownload("hero")}>
-            <LinkButton href={cvUrl} download>
-              Download CV <Download size={18} />
-            </LinkButton>
-          </div>
+          {cvUrl ? (
+            <div onClick={() => trackCvDownload("hero")}>
+              <LinkButton href={cvUrl} download>
+                Download CV <Download size={18} />
+              </LinkButton>
+            </div>
+          ) : null}
           <LinkButton href="/#projects" variant="secondary">
             <CodeXml size={18} /> View Projects
           </LinkButton>

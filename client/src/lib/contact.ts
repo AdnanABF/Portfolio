@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { getProjectBySlug } from "./data";
 
 export const contactSchema = z.object({
   name: z.string().trim().min(2, "Name is required"),
@@ -27,17 +26,23 @@ export const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 export const RATE_LIMIT_MAX = 3;
 export const COOLDOWN_MS = 30 * 1000;
 
+function formatSlugTitle(slug: string): string {
+  return slug
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
 /** Build prefill values for a private-repo access request (?request=slug). */
 export function accessRequestPrefill(slug: string | null): {
   subject: string;
   message: string;
 } | null {
   if (!slug) return null;
-  const project = getProjectBySlug(slug);
-  if (!project) return null;
+  const title = formatSlugTitle(slug);
   return {
-    subject: `Request Access for ${project.title}`,
-    message: `Hi Adnan, I'm interested in viewing the source code for "${project.title}". Could you please provide access to the repository?`,
+    subject: `Request Access for ${title}`,
+    message: `Hi Adnan, I'm interested in viewing the source code for "${title}". Could you please provide access to the repository?`,
   };
 }
 

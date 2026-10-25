@@ -22,7 +22,7 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
         builder.UseEnvironment("Development");
 
         var testConnectionString = Environment.GetEnvironmentVariable("TEST_CONNECTION_STRING")
-            ?? "Host=localhost;Port=5432;Database=portfolio_test;Username=postgres;Password=banana@7199";
+            ?? "Host=localhost;Port=5432;Database=portfolio_test;Username=postgres;Password=postgres";
 
         builder.ConfigureServices(services =>
         {

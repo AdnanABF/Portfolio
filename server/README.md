@@ -1,64 +1,32 @@
-# Server — Reserved Placeholder
+# Portfolio.API — ASP.NET Core (.NET 10) Backend
 
-This folder is intentionally empty. It reserves the monorepo boundary for a
-future standalone backend API (e.g. NestJS / .NET / Express).
+Backend Web API powering dynamic portfolio content, in-context CMS editing, telemetry, and contact leads for Adnan Bin Farook.
 
-## Boundary rules
+## Architecture
 
-- `client/` (Next.js App Router) must stay self-deployable on its own
-  (Coolify Dockerfile) today.
-- `client/` must NEVER import from `../server`.
-- All backend access from the client goes through `client/lib/api-client.ts`,
-  which uses `NEXT_PUBLIC_API_URL` when set, otherwise falls back to internal
-  Next.js Server Actions.
-- When this folder gains a real API, only env vars + DTOs change — no
-  component rewrites.
+- **Runtime**: .NET 10 (C# 13)
+- **Design**: Feature-Layered (Vertical Slice) architecture across 11 domains:
+  - `Admin`: System health, sessions, audit log queries
+  - `Auth`: ASP.NET Core Identity with HttpOnly cookies and sliding session management
+  - `Blog`: Technical articles, tags, markdown publishing
+  - `Contact`: Leads management, email validation, rate limiting
+  - `Experience`: Career timeline and accomplishments
+  - `Health`: Real-time database latency and uptime telemetry
+  - `Media`: Presigned upload management for Cloudflare R2 / S3
+  - `Projects`: Portfolio case studies, live links, and metrics
+  - `Settings`: Dynamic site settings (bio, hero media, CV URL)
+  - `Skills`: Categorized skills and proficiency levels
+  - `Telemetry`: Proxy-aware page visits, CV downloads, and analytics
+- **Database**: PostgreSQL with Entity Framework Core migrations
+- **Caching**: ASP.NET Core Output Caching with tag-based invalidation
+- **Security & Resilience**:
+  - Proxy-aware client IP resolution (`X-Forwarded-For`, `X-Real-IP`)
+  - IP-partitioned rate limiting for login, contact submissions, and telemetry
+  - RFC 7807 `ProblemDetails` with .NET 10 `IExceptionHandler`
 
-## Planned API contract (v1)
+## Running Locally
 
-When implemented, the server MUST match this contract so the client can swap
-with a one-line env change:
-
-### `POST /api/contact` → `201`
-
-Request:
-
-```json
-{
-  "name": "Jane Doe",
-  "email": "jane@example.com",
-  "subject": "Freelance project",
-  "message": "Hello, at least 10 chars..."
-}
+```powershell
+cd server/Portfolio.API
+dotnet run
 ```
-
-Responses:
-
-- `201 { "ok": true }` — accepted, emails queued
-- `400 { "ok": false, "error": "validation_failed" }`
-- `429 { "ok": false, "error": "rate_limited" }`
-
-Server responsibilities: zod validation, honeypot field, rate limit
-(3/hour + 30s cooldown per IP), send owner notification + sender auto-reply
-via EmailJS (same templates the Next.js client uses).
-
-### `GET /api/projects` → `200`
-
-```json
-[{ "id": "p1", "slug": "viralippurath-family", "title": "..." }]
-```
-
-### `GET /api/posts` → `200` (blog, future)
-
-Same shape as projects with `slug`, `title`, `excerpt`, `publishedAt`.
-
-## Suggested stack (not decided)
-
-- NestJS + TypeScript + zod + EmailJS, or ASP.NET Core Minimal API.
-- Deploy as a second Coolify service (e.g. `api.adnanbinfarook.com`), set
-  `NEXT_PUBLIC_API_URL=https://api.adnanbinfarook.com` in Coolify env vars.
-
-## Status
-
-`TODO`: no code yet. See `client/lib/actions.ts` (Server Action stub) as the
-temporary implementation until this service exists.

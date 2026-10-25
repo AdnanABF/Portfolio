@@ -6,11 +6,12 @@ import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/Badge";
 import { LinkButton } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { PROJECTS, getProjectBySlug } from "@/lib/data";
+import { getProject, getProjects } from "@/lib/api-client";
 import { SITE_URL } from "@/lib/site";
 
-export function generateStaticParams() {
-  return PROJECTS.map((p) => ({ slug: p.slug }));
+export async function generateStaticParams() {
+  const projects = await getProjects();
+  return projects.map((p) => ({ slug: p.slug }));
 }
 
 export async function generateMetadata({
@@ -19,7 +20,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const project = getProjectBySlug(slug);
+  const project = await getProject(slug);
   if (!project) return { title: "Project not found" };
   return {
     title: `${project.title} | Adnan Bin Farook`,
@@ -40,7 +41,7 @@ export default async function ProjectDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const project = getProjectBySlug(slug);
+  const project = await getProject(slug);
   if (!project) notFound();
 
   return (
