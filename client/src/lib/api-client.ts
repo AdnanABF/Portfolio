@@ -6,6 +6,11 @@ export function resolveUrl(path: string): string {
   return API_BASE ? `${API_BASE}${path}` : path;
 }
 
+function safeFetch(url: string, init?: RequestInit, timeoutMs = 3000): Promise<Response> {
+  const signal = init?.signal || AbortSignal.timeout(timeoutMs);
+  return fetch(url, { ...init, signal });
+}
+
 // ==========================================
 // Public Content Methods (Dynamic Backend API)
 // ==========================================
@@ -44,7 +49,7 @@ interface ApiSkill {
 
 export async function getProjects(): Promise<ProjectItem[]> {
   try {
-    const res = await fetch(resolveUrl("/api/projects"), {
+    const res = await safeFetch(resolveUrl("/api/projects"), {
       next: { revalidate: 60 },
     });
     if (!res.ok) return [];
@@ -67,7 +72,7 @@ export async function getProjects(): Promise<ProjectItem[]> {
 
 export async function getProject(slug: string): Promise<ProjectItem | undefined> {
   try {
-    const res = await fetch(resolveUrl(`/api/projects/${slug}`), {
+    const res = await safeFetch(resolveUrl(`/api/projects/${slug}`), {
       next: { revalidate: 60 },
     });
     if (!res.ok) return undefined;
@@ -90,7 +95,7 @@ export async function getProject(slug: string): Promise<ProjectItem | undefined>
 
 export async function getPosts(): Promise<PostItem[]> {
   try {
-    const res = await fetch(resolveUrl("/api/blog"), {
+    const res = await safeFetch(resolveUrl("/api/blog"), {
       next: { revalidate: 60 },
     });
     if (!res.ok) return [];
@@ -108,7 +113,7 @@ export async function getPosts(): Promise<PostItem[]> {
 
 export async function getExperience(): Promise<ExperienceItem[]> {
   try {
-    const res = await fetch(resolveUrl("/api/experience"), {
+    const res = await safeFetch(resolveUrl("/api/experience"), {
       next: { revalidate: 60 },
     });
     if (!res.ok) return [];
@@ -128,7 +133,7 @@ export async function getExperience(): Promise<ExperienceItem[]> {
 
 export async function getSkills(): Promise<Skill[]> {
   try {
-    const res = await fetch(resolveUrl("/api/skills"), {
+    const res = await safeFetch(resolveUrl("/api/skills"), {
       next: { revalidate: 60 },
     });
     if (!res.ok) return [];
@@ -158,7 +163,7 @@ export async function getSkills(): Promise<Skill[]> {
 
 export async function getSettings(): Promise<Record<string, string>> {
   try {
-    const res = await fetch(resolveUrl("/api/settings"), {
+    const res = await safeFetch(resolveUrl("/api/settings"), {
       next: { revalidate: 60 },
     });
     if (!res.ok) return {};
@@ -170,7 +175,7 @@ export async function getSettings(): Promise<Record<string, string>> {
 
 export async function getHealth(): Promise<{ status: string; dbLatencyMs: number; uptimeSeconds: number } | null> {
   try {
-    const res = await fetch(resolveUrl("/api/health"), { cache: "no-store" });
+    const res = await safeFetch(resolveUrl("/api/health"), { cache: "no-store" }, 2000);
     if (!res.ok) return null;
     return await res.json();
   } catch {
@@ -184,7 +189,7 @@ export async function getHealth(): Promise<{ status: string; dbLatencyMs: number
 
 export async function trackVisit(path: string, referrer?: string): Promise<void> {
   try {
-    await fetch(resolveUrl("/api/telemetry/visit"), {
+    await safeFetch(resolveUrl("/api/telemetry/visit"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path, referrer }),
@@ -196,7 +201,7 @@ export async function trackVisit(path: string, referrer?: string): Promise<void>
 
 export async function trackCvDownload(referrer?: string): Promise<void> {
   try {
-    await fetch(resolveUrl("/api/telemetry/cv-download"), {
+    await safeFetch(resolveUrl("/api/telemetry/cv-download"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ referrer }),
@@ -246,11 +251,15 @@ export async function apiLogout() {
 }
 
 export async function getMe() {
-  const res = await fetch(resolveUrl("/api/auth/me"), {
-    credentials: "include",
-  });
-  if (!res.ok) return null;
-  return await res.json();
+  try {
+    const res = await safeFetch(resolveUrl("/api/auth/me"), {
+      credentials: "include",
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
 }
 
 export async function createProject(dto: Record<string, unknown>) {
@@ -351,11 +360,15 @@ export async function getPresignedUpload(fileName: string, contentType: string, 
 }
 
 export async function getAdminSessions() {
-  const res = await fetch(resolveUrl("/api/admin/sessions"), {
-    credentials: "include",
-  });
-  if (!res.ok) return [];
-  return await res.json();
+  try {
+    const res = await safeFetch(resolveUrl("/api/admin/sessions"), {
+      credentials: "include",
+    });
+    if (!res.ok) return [];
+    return await res.json();
+  } catch {
+    return [];
+  }
 }
 
 export async function revokeSession(id: string) {
@@ -368,35 +381,51 @@ export async function revokeSession(id: string) {
 }
 
 export async function getAdminActivity() {
-  const res = await fetch(resolveUrl("/api/admin/activity"), {
-    credentials: "include",
-  });
-  if (!res.ok) return [];
-  return await res.json();
+  try {
+    const res = await safeFetch(resolveUrl("/api/admin/activity"), {
+      credentials: "include",
+    });
+    if (!res.ok) return [];
+    return await res.json();
+  } catch {
+    return [];
+  }
 }
 
 export async function getAdminSystemLogs() {
-  const res = await fetch(resolveUrl("/api/admin/system-logs"), {
-    credentials: "include",
-  });
-  if (!res.ok) return [];
-  return await res.json();
+  try {
+    const res = await safeFetch(resolveUrl("/api/admin/system-logs"), {
+      credentials: "include",
+    });
+    if (!res.ok) return [];
+    return await res.json();
+  } catch {
+    return [];
+  }
 }
 
 export async function getAdminAnalytics() {
-  const res = await fetch(resolveUrl("/api/telemetry/summary"), {
-    credentials: "include",
-  });
-  if (!res.ok) return null;
-  return await res.json();
+  try {
+    const res = await safeFetch(resolveUrl("/api/telemetry/summary"), {
+      credentials: "include",
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
 }
 
 export async function getAdminInquiries() {
-  const res = await fetch(resolveUrl("/api/contact/inquiries"), {
-    credentials: "include",
-  });
-  if (!res.ok) return [];
-  return await res.json();
+  try {
+    const res = await safeFetch(resolveUrl("/api/contact/inquiries"), {
+      credentials: "include",
+    });
+    if (!res.ok) return [];
+    return await res.json();
+  } catch {
+    return [];
+  }
 }
 
 export async function updateInquiryStatus(id: string, status: string) {
