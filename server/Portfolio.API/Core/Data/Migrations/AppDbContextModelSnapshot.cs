@@ -359,6 +359,8 @@ namespace Portfolio.API.Core.Data.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("IsPublished");
+
                     b.HasIndex("PublishedAt");
 
                     b.HasIndex("Slug")
@@ -477,6 +479,64 @@ namespace Portfolio.API.Core.Data.Migrations
                     b.ToTable("Experiences");
                 });
 
+            modelBuilder.Entity("Portfolio.API.Core.Entities.MediaAsset", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AccessPolicy")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("EntityId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("EntityType")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<long>("FileSizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("StorageRelativePath")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<Guid?>("UploadedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Category");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("EntityId");
+
+                    b.ToTable("MediaAssets");
+                });
+
             modelBuilder.Entity("Portfolio.API.Core.Entities.Project", b =>
                 {
                     b.Property<Guid>("Id")
@@ -505,6 +565,9 @@ namespace Portfolio.API.Core.Data.Migrations
                         .HasColumnType("character varying(500)");
 
                     b.Property<bool>("IsFeatured")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsPublished")
                         .HasColumnType("boolean");
 
                     b.Property<string>("KeyMetricsJson")
@@ -545,6 +608,8 @@ namespace Portfolio.API.Core.Data.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("IsPublished");
 
                     b.HasIndex("Slug")
                         .IsUnique();

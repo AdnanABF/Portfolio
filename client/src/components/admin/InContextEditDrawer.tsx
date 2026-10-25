@@ -7,7 +7,7 @@ import {
   createExperience,
   createProject,
   createSkill,
-  getPresignedUpload,
+  uploadMedia,
   updateExperience,
   updateProject,
   updateSetting,
@@ -23,6 +23,7 @@ interface FormDataState {
   heroImageUrl?: string;
   liveUrl?: string;
   githubUrl?: string;
+  isPublished?: boolean;
   role?: string;
   company?: string;
   period?: string;
@@ -78,6 +79,10 @@ function parseInitialFormData(initialData: Record<string, unknown>): FormDataSta
     achievementsText,
     photoUrl,
     cvUrl,
+    isPublished:
+      typeof initialData?.isPublished === "boolean"
+        ? initialData.isPublished
+        : true,
     name: (initialData?.name as string) || "",
     category: (initialData?.category as string) || "Modern",
     level: typeof initialData?.level === "number" ? initialData.level : 80,
@@ -102,7 +107,8 @@ export function InContextEditDrawer({
   const handleFileUpload = async (
     e: React.ChangeEvent<HTMLInputElement>,
     fieldName: string,
-    folder: string
+    category: string,
+    accessPolicy: "Inherit" | "Public" | "AdminOnly" = "Inherit"
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -111,18 +117,11 @@ export function InContextEditDrawer({
     setUploadingField(fieldName);
     setError(null);
     try {
-      const presign = await getPresignedUpload(file.name, file.type, folder);
+      const entityId = formData.id ? String(formData.id) : undefined;
+      const entityType = type === "project" ? "Project" : undefined;
 
-      // Direct upload to Cloudflare R2 / S3
-      const res = await fetch(presign.uploadUrl, {
-        method: "PUT",
-        headers: { "Content-Type": file.type },
-        body: file,
-      });
-
-      if (!res.ok) throw new Error("File upload was rejected by storage provider.");
-
-      setFormData((prev) => ({ ...prev, [fieldName]: presign.publicUrl }));
+      const media = await uploadMedia(file, category, entityId, entityType, accessPolicy);
+      setFormData((prev) => ({ ...prev, [fieldName]: media.url }));
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to upload file.");
     } finally {
@@ -150,12 +149,16 @@ export function InContextEditDrawer({
           liveUrl: formData.liveUrl || "",
           githubUrl: formData.githubUrl || "",
           isFeatured: Boolean(formData.isFeatured ?? true),
+          isPublished: Boolean(formData.isPublished ?? true),
           sortOrder: typeof formData.sortOrder === "number" ? formData.sortOrder : 1,
           contentMarkdown: formData.contentMarkdown || "",
         };
         if (formData.id) {
-          await updateProject(formData.id, formData as Record<string, unknown>);
-          savedData = formData;
+          await updateProject(formData.id, {
+            ...formData,
+            isPublished: Boolean(formData.isPublished ?? true),
+          });
+          savedData = { ...formData, isPublished: Boolean(formData.isPublished ?? true) };
         } else {
           const created = await createProject(projectPayload);
           savedData = { ...created, imageUrl: created.heroImageUrl, techStack: created.tags };
@@ -309,7 +312,7 @@ export function InContextEditDrawer({
                         type="file"
                         accept="image/*"
                         className="hidden"
-                        onChange={(e) => handleFileUpload(e, "heroImageUrl", "projects")}
+                        onChange={(e) => handleFileUpload(e, "heroImageUrl", "projects", "Inherit")}
                       />
                     </label>
                   </div>
@@ -333,6 +336,24 @@ export function InContextEditDrawer({
                       onChange={(e) => setFormData({ ...formData, githubUrl: e.target.value })}
                       className="w-full rounded-lg border-2 border-line bg-surface-2 p-2 text-xs text-foreground focus:outline-primary"
                     />
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 rounded-xl border-2 border-line bg-surface-2 p-3">
+                  <input
+                    type="checkbox"
+                    id="isPublished"
+                    checked={formData.isPublished ?? true}
+                    onChange={(e) => setFormData({ ...formData, isPublished: e.target.checked })}
+                    className="mt-0.5 h-4 w-4 rounded accent-primary cursor-pointer"
+                  />
+                  <div>
+                    <label htmlFor="isPublished" className="font-bold text-foreground cursor-pointer block text-xs">
+                      Publish Project (Visible to visitors)
+                    </label>
+                    <span className="text-[11px] text-muted block leading-tight">
+                      When unchecked, this project and its media are saved as a draft and hidden from public visitors.
+                    </span>
                   </div>
                 </div>
               </>
@@ -472,7 +493,7 @@ export function InContextEditDrawer({
                         value={formData.photoUrl || ""}
                         onChange={(e) => setFormData({ ...formData, photoUrl: e.target.value })}
                         className="w-full rounded-lg border-2 border-line bg-surface p-1.5 text-xs text-foreground focus:outline-primary font-mono"
-                        placeholder="/adnan_photo.webp or https://..."
+                        placeholder="/adnan_photo.webp or /media/..."
                       />
                       <label className="mt-2 inline-flex items-center gap-1.5 rounded-lg border-2 border-line bg-primary px-3 py-1 font-bold text-white hover:bg-primary-strong cursor-pointer text-xs">
                         {isUploading && uploadingField === "photoUrl" ? (
@@ -485,7 +506,7 @@ export function InContextEditDrawer({
                           type="file"
                           accept="image/*"
                           className="hidden"
-                          onChange={(e) => handleFileUpload(e, "photoUrl", "photos")}
+                          onChange={(e) => handleFileUpload(e, "photoUrl", "photos", "Public")}
                         />
                       </label>
                     </div>
@@ -505,7 +526,7 @@ export function InContextEditDrawer({
                       value={formData.cvUrl || ""}
                       onChange={(e) => setFormData({ ...formData, cvUrl: e.target.value })}
                       className="w-full rounded-lg border-2 border-line bg-surface p-1.5 text-xs text-foreground focus:outline-primary font-mono"
-                      placeholder="https://... (or upload below)"
+                      placeholder="https://... or /media/... (or upload below)"
                     />
                     <div className="mt-2 flex items-center justify-between">
                       <label className="inline-flex items-center gap-1.5 rounded-lg border-2 border-line bg-accent-coral px-3 py-1 font-bold text-white hover:opacity-90 cursor-pointer text-xs">
@@ -519,7 +540,7 @@ export function InContextEditDrawer({
                           type="file"
                           accept=".pdf,application/pdf"
                           className="hidden"
-                          onChange={(e) => handleFileUpload(e, "cvUrl", "documents")}
+                          onChange={(e) => handleFileUpload(e, "cvUrl", "documents", "Public")}
                         />
                       </label>
                       {formData.cvUrl && (

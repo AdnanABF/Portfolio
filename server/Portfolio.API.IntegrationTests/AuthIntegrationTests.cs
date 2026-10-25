@@ -39,7 +39,7 @@ public class AuthIntegrationTests : IClassFixture<CustomWebApplicationFactory>
         (HttpMethod.Put, "/api/blog/00000000-0000-0000-0000-000000000001"),
         (HttpMethod.Delete, "/api/blog/00000000-0000-0000-0000-000000000001"),
         (HttpMethod.Put, "/api/settings/test-key"),
-        (HttpMethod.Post, "/api/media/presign")
+        (HttpMethod.Post, "/api/media/upload")
     ];
 
     private static readonly string[] AnonymousEndpoints =

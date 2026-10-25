@@ -24,6 +24,10 @@ const nextConfig: NextConfig = {
         source: "/api/:path*",
         destination: `${apiBase}/api/:path*`,
       },
+      {
+        source: "/media/:path*",
+        destination: `${apiBase}/api/media/:path*`,
+      },
     ];
   },
 };
