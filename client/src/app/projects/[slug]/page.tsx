@@ -9,8 +9,6 @@ import { Card } from "@/components/ui/Card";
 import { getProject } from "@/lib/api-client";
 import { SITE_URL } from "@/lib/site";
 
-export const dynamic = "force-dynamic";
-
 export async function generateMetadata({
   params,
 }: {
