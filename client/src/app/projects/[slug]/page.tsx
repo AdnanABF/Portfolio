@@ -6,13 +6,10 @@ import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/Badge";
 import { LinkButton } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { getProject, getProjects } from "@/lib/api-client";
+import { getProject } from "@/lib/api-client";
 import { SITE_URL } from "@/lib/site";
 
-export async function generateStaticParams() {
-  const projects = await getProjects();
-  return projects.map((p) => ({ slug: p.slug }));
-}
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,
