@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Portfolio.API.Core.Data;
 using Portfolio.API.Core.Entities;
+using Portfolio.API.Infrastructure.Extensions;
 
 namespace Portfolio.API.Features.Telemetry;
 
@@ -37,7 +38,7 @@ public class TelemetryService : ITelemetryService
     public async Task TrackCvDownloadAsync(CvDownloadPingDto dto, HttpContext httpContext, CancellationToken cancellationToken = default)
     {
         var country = httpContext.Request.Headers["CF-IPCountry"].ToString();
-        var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var ip = httpContext.GetClientIpAddress();
 
         var cv = new CvDownload
         {

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Portfolio.API.Common.Exceptions;
 using Portfolio.API.Core.Data;
 using Portfolio.API.Core.Entities;
+using Portfolio.API.Infrastructure.Extensions;
 
 namespace Portfolio.API.Infrastructure.ExceptionHandling;
 
@@ -63,7 +64,7 @@ public class GlobalExceptionHandler : IExceptionHandler
             using var scope = _serviceProvider.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-            var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+            var ip = context.GetClientIpAddress();
             var log = new SystemLog
             {
                 Level = statusCode >= 500 ? "Error" : "Warning",

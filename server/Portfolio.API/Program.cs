@@ -23,6 +23,7 @@ using Portfolio.API.Features.Settings;
 using Portfolio.API.Features.Skills;
 using Portfolio.API.Features.Telemetry;
 using Portfolio.API.Infrastructure.ExceptionHandling;
+using Portfolio.API.Infrastructure.Extensions;
 using Portfolio.API.Infrastructure.Logging;
 using Serilog;
 
@@ -172,7 +173,7 @@ builder.Services.AddRateLimiter(options =>
 
     options.AddPolicy("auth-rate-limit", httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            partitionKey: httpContext.GetClientIpAddress(),
             factory: _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = 5,
@@ -182,7 +183,7 @@ builder.Services.AddRateLimiter(options =>
 
     options.AddPolicy("contact-rate-limit", httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            partitionKey: httpContext.GetClientIpAddress(),
             factory: _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = 3,
@@ -192,7 +193,7 @@ builder.Services.AddRateLimiter(options =>
 
     options.AddPolicy("telemetry-rate-limit", httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            partitionKey: httpContext.GetClientIpAddress(),
             factory: _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = 60,

@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Portfolio.API.Core.Data;
 using Portfolio.API.Core.Entities;
+using Portfolio.API.Infrastructure.Extensions;
 using UAParser;
 
 namespace Portfolio.API.Infrastructure.Logging;
@@ -27,7 +28,7 @@ public class ActivityLogger : IActivityLogger
             Guid? userId = Guid.TryParse(userIdStr, out var u) ? u : null;
             var userEmail = httpContext?.User?.FindFirstValue(ClaimTypes.Email) ?? "system";
 
-            var ip = httpContext?.Connection?.RemoteIpAddress?.ToString() ?? "unknown";
+            var ip = httpContext.GetClientIpAddress();
             var userAgent = httpContext?.Request?.Headers["User-Agent"].ToString() ?? "";
             var deviceInfo = ParseDeviceInfo(userAgent);
 

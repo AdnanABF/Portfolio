@@ -254,4 +254,45 @@ public class AuthIntegrationTests : IClassFixture<CustomWebApplicationFactory>
                 $"Endpoint with pattern '{pattern}' has [AllowAnonymous] but is NOT on the explicit allowlist!");
         }
     }
+
+    [Fact]
+    public async Task Login_RateLimiting_Is_Partitioned_By_Client_Ip()
+    {
+        var client = _factory.CreateClient();
+        var clientIp = "198.51.100.77";
+        var differentIp = "198.51.100.88";
+
+        // Send 5 invalid login requests from clientIp (exhausting the 5-permit quota)
+        for (int i = 0; i < 5; i++)
+        {
+            var req = new HttpRequestMessage(HttpMethod.Post, "/api/auth/login")
+            {
+                Content = JsonContent.Create(new { email = "admin@example.com", password = "WrongPassword123!" })
+            };
+            req.Headers.Add("X-Forwarded-For", clientIp);
+
+            var res = await client.SendAsync(req);
+            Assert.NotEqual(HttpStatusCode.TooManyRequests, res.StatusCode);
+        }
+
+        // 6th request from clientIp should be rate limited (429)
+        var blockedReq = new HttpRequestMessage(HttpMethod.Post, "/api/auth/login")
+        {
+            Content = JsonContent.Create(new { email = "admin@example.com", password = "WrongPassword123!" })
+        };
+        blockedReq.Headers.Add("X-Forwarded-For", clientIp);
+
+        var blockedRes = await client.SendAsync(blockedReq);
+        Assert.Equal(HttpStatusCode.TooManyRequests, blockedRes.StatusCode);
+
+        // A different IP must NOT be blocked
+        var otherReq = new HttpRequestMessage(HttpMethod.Post, "/api/auth/login")
+        {
+            Content = JsonContent.Create(new { email = "admin@example.com", password = "WrongPassword123!" })
+        };
+        otherReq.Headers.Add("X-Forwarded-For", differentIp);
+
+        var otherRes = await client.SendAsync(otherReq);
+        Assert.NotEqual(HttpStatusCode.TooManyRequests, otherRes.StatusCode);
+    }
 }

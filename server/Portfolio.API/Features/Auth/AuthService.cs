@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Portfolio.API.Core.Data;
 using Portfolio.API.Core.Entities;
+using Portfolio.API.Infrastructure.Extensions;
 using Portfolio.API.Infrastructure.Logging;
 using UAParser;
 
@@ -39,7 +40,7 @@ public class AuthService : IAuthService
             .ExecuteDeleteAsync(cancellationToken);
 
         // 2. Resolve client info
-        var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var ip = httpContext.GetClientIpAddress();
         var userAgent = httpContext.Request.Headers.UserAgent.ToString();
         var deviceInfo = ParseDeviceInfo(userAgent);
 
@@ -74,7 +75,8 @@ public class AuthService : IAuthService
 
     public async Task<LoginResponse?> LoginAsync(LoginRequest request, HttpContext httpContext, CancellationToken cancellationToken = default)
     {
-        var user = await _userManager.FindByEmailAsync(request.Email);
+        var user = await _userManager.FindByEmailAsync(request.Email)
+            ?? await _userManager.FindByNameAsync(request.Email);
         if (user == null) return null;
 
         var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, lockoutOnFailure: true);
