@@ -5,8 +5,6 @@ const apiBase = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL 
 
 const nextConfig: NextConfig = {
   /* config options here */
-  cacheComponents: true,
-  partialPrefetching: true,
   // Slim self-contained server for the Coolify Dockerfile.
   output: "standalone",
   pageExtensions: ["ts", "tsx", "mdx"],

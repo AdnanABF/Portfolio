@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -27,7 +28,7 @@ function formatDate(iso: string) {
   });
 }
 
-export default async function BlogPostPage({
+async function BlogPostContent({
   params,
 }: {
   params: Promise<{ slug: string }>;
@@ -60,5 +61,23 @@ export default async function BlogPostPage({
         <Content />
       </div>
     </article>
+  );
+}
+
+export default function BlogPostPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-3xl px-6 pt-28 pb-16 md:px-12">
+          <div className="h-64 animate-pulse rounded-2xl border border-line bg-surface/50" />
+        </div>
+      }
+    >
+      <BlogPostContent params={params} />
+    </Suspense>
   );
 }

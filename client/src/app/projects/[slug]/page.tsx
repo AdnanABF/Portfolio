@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { ExternalLink, FolderGit2, Lock } from "lucide-react";
 import Image from "next/image";
@@ -30,7 +31,7 @@ export async function generateMetadata({
   };
 }
 
-export default async function ProjectDetailPage({
+async function ProjectDetailContent({
   params,
 }: {
   params: Promise<{ slug: string }>;
@@ -117,5 +118,23 @@ export default async function ProjectDetailPage({
         {SITE_URL}/projects/{project.slug}
       </p>
     </article>
+  );
+}
+
+export default function ProjectDetailPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-4xl px-6 pt-28 pb-16 md:px-12">
+          <div className="h-64 animate-pulse rounded-2xl border border-line bg-surface/50" />
+        </div>
+      }
+    >
+      <ProjectDetailContent params={params} />
+    </Suspense>
   );
 }
