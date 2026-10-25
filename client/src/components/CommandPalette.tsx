@@ -3,6 +3,7 @@
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { getSettings, trackCvDownload } from "@/lib/api-client";
 import {
   Briefcase,
   Code2,
@@ -30,6 +31,25 @@ export function CommandPalette() {
   const [query, setQuery] = useState("");
   const router = useRouter();
   const { theme, setTheme } = useTheme();
+  const [cvUrl, setCvUrl] = useState<string>("");
+
+  useEffect(() => {
+    let isMounted = true;
+    getSettings().then((settings) => {
+      if (!isMounted) return;
+      if (settings.hero_photo_cv) {
+        try {
+          const parsed = JSON.parse(settings.hero_photo_cv);
+          if (parsed.cvUrl) setCvUrl(parsed.cvUrl);
+        } catch {
+          // ignore
+        }
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -106,16 +126,21 @@ export function CommandPalette() {
         setIsOpen(false);
       },
     },
-    {
-      id: "action-cv",
-      title: "Download CV (PDF)",
-      category: "Actions",
-      icon: FileDown,
-      action: () => {
-        window.open("/api/telemetry/cv-download", "_blank");
-        setIsOpen(false);
-      },
-    },
+    ...(cvUrl
+      ? [
+          {
+            id: "action-cv",
+            title: "Download CV (PDF)",
+            category: "Actions" as const,
+            icon: FileDown,
+            action: () => {
+              trackCvDownload("command_palette");
+              window.open(cvUrl, "_blank");
+              setIsOpen(false);
+            },
+          },
+        ]
+      : []),
     {
       id: "admin-login",
       title: "Admin CMS Portal (/admin)",

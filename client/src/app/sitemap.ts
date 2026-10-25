@@ -1,14 +1,16 @@
 import type { MetadataRoute } from "next";
-import { POSTS, PROJECTS } from "@/lib/data";
+import { getPosts, getProjects } from "@/lib/api-client";
 import { SITE_URL } from "@/lib/site";
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
+  const [projects, posts] = await Promise.all([getProjects(), getPosts()]);
+
   return [
     { url: `${SITE_URL}/`, lastModified: now, changeFrequency: "monthly", priority: 1 },
     { url: `${SITE_URL}/projects`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
     { url: `${SITE_URL}/blog`, lastModified: now, changeFrequency: "weekly", priority: 0.7 },
-    ...PROJECTS.map(
+    ...projects.map(
       (project): MetadataRoute.Sitemap[number] => ({
         url: `${SITE_URL}/projects/${project.slug}`,
         lastModified: now,
@@ -16,10 +18,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
         priority: 0.7,
       }),
     ),
-    ...POSTS.map(
+    ...posts.map(
       (post): MetadataRoute.Sitemap[number] => ({
         url: `${SITE_URL}/blog/${post.slug}`,
-        lastModified: new Date(post.publishedAt),
+        lastModified: post.publishedAt ? new Date(post.publishedAt) : now,
         changeFrequency: "monthly",
         priority: 0.6,
       }),

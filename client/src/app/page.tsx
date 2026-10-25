@@ -1,8 +1,7 @@
 import { AvailabilityCell } from "@/components/bento/AvailabilityCell";
-import { FeaturedCell } from "@/components/bento/FeaturedCell";
+import { BentoSecondaryRow } from "@/components/bento/BentoSecondaryRow";
 import { HeroCell } from "@/components/bento/HeroCell";
 import { LocationCell } from "@/components/bento/LocationCell";
-import { StackCell } from "@/components/bento/StackCell";
 import { Reveal } from "@/components/effects/Reveal";
 import { About } from "@/components/sections/About";
 import { Contact } from "@/components/sections/Contact";
@@ -24,12 +23,7 @@ export default function Home() {
           <Reveal className="md:col-span-4" delay={150}>
             <LocationCell />
           </Reveal>
-          <Reveal className="md:col-span-7" delay={200}>
-            <StackCell />
-          </Reveal>
-          <Reveal className="md:col-span-5" delay={250}>
-            <FeaturedCell />
-          </Reveal>
+          <BentoSecondaryRow />
         </div>
       </section>
       <About />

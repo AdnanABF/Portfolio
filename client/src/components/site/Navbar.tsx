@@ -7,17 +7,39 @@ import { useEffect, useState } from "react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { UserMenu } from "@/components/site/UserMenu";
 import { LinkButton } from "@/components/ui/Button";
+import { getExperience, getProjects, getSkills } from "@/lib/api-client";
 import { NAV_ITEMS } from "@/lib/data";
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [navItems, setNavItems] = useState(NAV_ITEMS);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
     handleScroll();
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    Promise.all([getProjects(), getSkills(), getExperience()]).then(
+      ([projects, skills, experience]) => {
+        if (!isMounted) return;
+        setNavItems(
+          NAV_ITEMS.filter((item) => {
+            if (item.href === "/#projects") return projects.length > 0;
+            if (item.href === "/#skills") return skills.length > 0;
+            if (item.href === "/#experience") return experience.length > 0;
+            return true;
+          })
+        );
+      }
+    );
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   return (
@@ -54,7 +76,7 @@ export function Navbar() {
         {/* Center: Desktop Nav (Pill Layout) */}
         <div className="absolute top-1/2 left-1/2 hidden -translate-x-1/2 -translate-y-1/2 items-center md:flex">
           <div className="flex items-center gap-1 rounded-full border-2 border-line bg-surface/90 p-1.5 shadow-[3px_3px_0px_var(--shadow-color)] backdrop-blur-md">
-            {NAV_ITEMS.map((item) => (
+            {navItems.map((item) => (
               <Link
                 key={item.label}
                 href={item.href}
@@ -95,7 +117,7 @@ export function Navbar() {
         }`}
       >
         <div className="flex flex-col gap-2 p-6">
-          {NAV_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <Link
               key={item.label}
               href={item.href}

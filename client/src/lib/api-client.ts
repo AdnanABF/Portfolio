@@ -1,10 +1,18 @@
-import { EXPERIENCE, POSTS, PROJECTS, SKILLS, getProjectBySlug } from "./data";
 import type { ExperienceItem, PostItem, ProjectItem, Skill } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "";
 
+export function resolveUrl(path: string): string {
+  return API_BASE ? `${API_BASE}${path}` : path;
+}
+
+function safeFetch(url: string, init?: RequestInit, timeoutMs = 3000): Promise<Response> {
+  const signal = init?.signal || AbortSignal.timeout(timeoutMs);
+  return fetch(url, { ...init, signal });
+}
+
 // ==========================================
-// Public Content Methods (with graceful fallback)
+// Public Content Methods (Dynamic Backend API)
 // ==========================================
 
 interface ApiProject {
@@ -40,12 +48,11 @@ interface ApiSkill {
 }
 
 export async function getProjects(): Promise<ProjectItem[]> {
-  if (!API_BASE) return PROJECTS;
   try {
-    const res = await fetch(`${API_BASE}/api/projects`, {
+    const res = await safeFetch(resolveUrl("/api/projects"), {
       next: { revalidate: 60 },
     });
-    if (!res.ok) return PROJECTS;
+    if (!res.ok) return [];
     const data: ApiProject[] = await res.json();
     return data.map((p) => ({
       id: p.id,
@@ -59,18 +66,16 @@ export async function getProjects(): Promise<ProjectItem[]> {
       isPrivate: !p.liveUrl,
     }));
   } catch {
-    return PROJECTS;
+    return [];
   }
 }
 
 export async function getProject(slug: string): Promise<ProjectItem | undefined> {
-  if (!API_BASE) return getProjectBySlug(slug);
   try {
-    const res = await fetch(`${API_BASE}/api/projects/${slug}`, {
+    const res = await safeFetch(resolveUrl(`/api/projects/${slug}`), {
       next: { revalidate: 60 },
     });
-    if (res.status === 404) return undefined;
-    if (!res.ok) return getProjectBySlug(slug);
+    if (!res.ok) return undefined;
     const p: ApiProject = await res.json();
     return {
       id: p.id,
@@ -84,17 +89,16 @@ export async function getProject(slug: string): Promise<ProjectItem | undefined>
       isPrivate: !p.liveUrl,
     };
   } catch {
-    return getProjectBySlug(slug);
+    return undefined;
   }
 }
 
 export async function getPosts(): Promise<PostItem[]> {
-  if (!API_BASE) return POSTS;
   try {
-    const res = await fetch(`${API_BASE}/api/blog`, {
+    const res = await safeFetch(resolveUrl("/api/blog"), {
       next: { revalidate: 60 },
     });
-    if (!res.ok) return POSTS;
+    if (!res.ok) return [];
     const data: ApiPost[] = await res.json();
     return data.map((p) => ({
       slug: p.slug,
@@ -103,17 +107,16 @@ export async function getPosts(): Promise<PostItem[]> {
       publishedAt: p.publishedAt ? p.publishedAt.split("T")[0] : "",
     }));
   } catch {
-    return POSTS;
+    return [];
   }
 }
 
 export async function getExperience(): Promise<ExperienceItem[]> {
-  if (!API_BASE) return EXPERIENCE;
   try {
-    const res = await fetch(`${API_BASE}/api/experience`, {
+    const res = await safeFetch(resolveUrl("/api/experience"), {
       next: { revalidate: 60 },
     });
-    if (!res.ok) return EXPERIENCE;
+    if (!res.ok) return [];
     const data: ApiExperience[] = await res.json();
     return data.map((e) => ({
       id: e.id,
@@ -124,17 +127,16 @@ export async function getExperience(): Promise<ExperienceItem[]> {
       tech: [],
     }));
   } catch {
-    return EXPERIENCE;
+    return [];
   }
 }
 
 export async function getSkills(): Promise<Skill[]> {
-  if (!API_BASE) return SKILLS;
   try {
-    const res = await fetch(`${API_BASE}/api/skills`, {
+    const res = await safeFetch(resolveUrl("/api/skills"), {
       next: { revalidate: 60 },
     });
-    if (!res.ok) return SKILLS;
+    if (!res.ok) return [];
     const data: ApiSkill[] = await res.json();
     return data.map((s) => {
       const validCategories: Array<"Modern" | "Microsoft" | "Legacy" | "Tools"> = [
@@ -155,14 +157,13 @@ export async function getSkills(): Promise<Skill[]> {
       };
     });
   } catch {
-    return SKILLS;
+    return [];
   }
 }
 
 export async function getSettings(): Promise<Record<string, string>> {
-  if (!API_BASE) return {};
   try {
-    const res = await fetch(`${API_BASE}/api/settings`, {
+    const res = await safeFetch(resolveUrl("/api/settings"), {
       next: { revalidate: 60 },
     });
     if (!res.ok) return {};
@@ -173,9 +174,8 @@ export async function getSettings(): Promise<Record<string, string>> {
 }
 
 export async function getHealth(): Promise<{ status: string; dbLatencyMs: number; uptimeSeconds: number } | null> {
-  if (!API_BASE) return null;
   try {
-    const res = await fetch(`${API_BASE}/api/health`, { cache: "no-store" });
+    const res = await safeFetch(resolveUrl("/api/health"), { cache: "no-store" }, 2000);
     if (!res.ok) return null;
     return await res.json();
   } catch {
@@ -188,9 +188,8 @@ export async function getHealth(): Promise<{ status: string; dbLatencyMs: number
 // ==========================================
 
 export async function trackVisit(path: string, referrer?: string): Promise<void> {
-  if (!API_BASE) return;
   try {
-    await fetch(`${API_BASE}/api/telemetry/visit`, {
+    await safeFetch(resolveUrl("/api/telemetry/visit"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path, referrer }),
@@ -201,9 +200,8 @@ export async function trackVisit(path: string, referrer?: string): Promise<void>
 }
 
 export async function trackCvDownload(referrer?: string): Promise<void> {
-  if (!API_BASE) return;
   try {
-    await fetch(`${API_BASE}/api/telemetry/cv-download`, {
+    await safeFetch(resolveUrl("/api/telemetry/cv-download"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ referrer }),
@@ -214,8 +212,7 @@ export async function trackCvDownload(referrer?: string): Promise<void> {
 }
 
 export async function submitContact(data: { name: string; email: string; subject: string; message: string }) {
-  const url = API_BASE ? `${API_BASE}/api/contact` : "/api/contact";
-  const res = await fetch(url, {
+  const res = await fetch(resolveUrl("/api/contact"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -227,10 +224,6 @@ export async function submitContact(data: { name: string; email: string; subject
 // ==========================================
 // Admin & Mutation API
 // ==========================================
-
-function resolveUrl(path: string): string {
-  return API_BASE ? `${API_BASE}${path}` : path;
-}
 
 export async function apiLogin(email: string, password: string) {
   const res = await fetch(resolveUrl("/api/auth/login"), {
@@ -258,10 +251,25 @@ export async function apiLogout() {
 }
 
 export async function getMe() {
-  const res = await fetch(resolveUrl("/api/auth/me"), {
+  try {
+    const res = await safeFetch(resolveUrl("/api/auth/me"), {
+      credentials: "include",
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function createProject(dto: Record<string, unknown>) {
+  const res = await fetch(resolveUrl("/api/projects"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     credentials: "include",
+    body: JSON.stringify(dto),
   });
-  if (!res.ok) return null;
+  if (!res.ok) throw new Error("Failed to create project.");
   return await res.json();
 }
 
@@ -284,6 +292,17 @@ export async function updateSetting(key: string, value: string) {
     body: JSON.stringify({ value }),
   });
   if (!res.ok) throw new Error(`Failed to update setting ${key}.`);
+  return await res.json();
+}
+
+export async function createExperience(dto: Record<string, unknown>) {
+  const res = await fetch(resolveUrl("/api/experience"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(dto),
+  });
+  if (!res.ok) throw new Error("Failed to create experience.");
   return await res.json();
 }
 
@@ -341,11 +360,15 @@ export async function getPresignedUpload(fileName: string, contentType: string, 
 }
 
 export async function getAdminSessions() {
-  const res = await fetch(resolveUrl("/api/admin/sessions"), {
-    credentials: "include",
-  });
-  if (!res.ok) return [];
-  return await res.json();
+  try {
+    const res = await safeFetch(resolveUrl("/api/admin/sessions"), {
+      credentials: "include",
+    });
+    if (!res.ok) return [];
+    return await res.json();
+  } catch {
+    return [];
+  }
 }
 
 export async function revokeSession(id: string) {
@@ -358,35 +381,51 @@ export async function revokeSession(id: string) {
 }
 
 export async function getAdminActivity() {
-  const res = await fetch(resolveUrl("/api/admin/activity"), {
-    credentials: "include",
-  });
-  if (!res.ok) return [];
-  return await res.json();
+  try {
+    const res = await safeFetch(resolveUrl("/api/admin/activity"), {
+      credentials: "include",
+    });
+    if (!res.ok) return [];
+    return await res.json();
+  } catch {
+    return [];
+  }
 }
 
 export async function getAdminSystemLogs() {
-  const res = await fetch(resolveUrl("/api/admin/system-logs"), {
-    credentials: "include",
-  });
-  if (!res.ok) return [];
-  return await res.json();
+  try {
+    const res = await safeFetch(resolveUrl("/api/admin/system-logs"), {
+      credentials: "include",
+    });
+    if (!res.ok) return [];
+    return await res.json();
+  } catch {
+    return [];
+  }
 }
 
 export async function getAdminAnalytics() {
-  const res = await fetch(resolveUrl("/api/telemetry/summary"), {
-    credentials: "include",
-  });
-  if (!res.ok) return null;
-  return await res.json();
+  try {
+    const res = await safeFetch(resolveUrl("/api/telemetry/summary"), {
+      credentials: "include",
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
 }
 
 export async function getAdminInquiries() {
-  const res = await fetch(resolveUrl("/api/contact/inquiries"), {
-    credentials: "include",
-  });
-  if (!res.ok) return [];
-  return await res.json();
+  try {
+    const res = await safeFetch(resolveUrl("/api/contact/inquiries"), {
+      credentials: "include",
+    });
+    if (!res.ok) return [];
+    return await res.json();
+  } catch {
+    return [];
+  }
 }
 
 export async function updateInquiryStatus(id: string, status: string) {

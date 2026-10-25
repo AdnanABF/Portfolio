@@ -3,22 +3,43 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Download, Mail, MapPin, Printer } from "lucide-react";
-import { getExperience, getSkills, trackCvDownload } from "@/lib/api-client";
+import { getExperience, getSettings, getSkills, trackCvDownload } from "@/lib/api-client";
 import { Button } from "@/components/ui/Button";
 import type { ExperienceItem, Skill } from "@/lib/types";
 
 export default function ResumePage() {
   const [experience, setExperience] = useState<ExperienceItem[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
+  const [cvUrl, setCvUrl] = useState<string>("");
 
   useEffect(() => {
-    getExperience().then(setExperience);
-    getSkills().then(setSkills);
+    let isMounted = true;
+    getExperience().then((data) => {
+      if (isMounted) setExperience(data);
+    });
+    getSkills().then((data) => {
+      if (isMounted) setSkills(data);
+    });
+    getSettings().then((settings) => {
+      if (!isMounted) return;
+      if (settings.hero_photo_cv) {
+        try {
+          const parsed = JSON.parse(settings.hero_photo_cv);
+          if (parsed.cvUrl) setCvUrl(parsed.cvUrl);
+        } catch {
+          // ignore
+        }
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleDownload = () => {
+    if (!cvUrl) return;
     trackCvDownload(document.referrer);
-    window.open("/api/telemetry/cv-download", "_blank");
+    window.open(cvUrl, "_blank");
   };
 
   return (
@@ -42,10 +63,12 @@ export default function ResumePage() {
               <Printer className="h-3.5 w-3.5" />
               <span>Print Resume</span>
             </button>
-            <Button onClick={handleDownload} className="py-2 text-xs">
-              <Download className="h-3.5 w-3.5" />
-              <span>Download PDF</span>
-            </Button>
+            {cvUrl ? (
+              <Button onClick={handleDownload} className="py-2 text-xs">
+                <Download className="h-3.5 w-3.5" />
+                <span>Download PDF</span>
+              </Button>
+            ) : null}
           </div>
         </div>
 
@@ -91,47 +114,51 @@ export default function ResumePage() {
           </div>
 
           {/* Work Experience */}
-          <div className="mt-8">
-            <h2 className="font-mono text-xs font-extrabold uppercase tracking-widest text-primary">
-              {"// Work Experience"}
-            </h2>
+          {experience.length > 0 && (
+            <div className="mt-8">
+              <h2 className="font-mono text-xs font-extrabold uppercase tracking-widest text-primary">
+                {"// Work Experience"}
+              </h2>
 
-            <div className="mt-4 space-y-6">
-              {experience.map((exp) => (
-                <div key={exp.id} className="relative pl-4 border-l-2 border-line">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                    <h3 className="font-bold text-base text-foreground">{exp.role}</h3>
-                    <span className="font-mono text-xs text-muted font-bold">{exp.period}</span>
+              <div className="mt-4 space-y-6">
+                {experience.map((exp) => (
+                  <div key={exp.id} className="relative pl-4 border-l-2 border-line">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                      <h3 className="font-bold text-base text-foreground">{exp.role}</h3>
+                      <span className="font-mono text-xs text-muted font-bold">{exp.period}</span>
+                    </div>
+                    <div className="font-mono text-xs text-secondary font-semibold">{exp.company}</div>
+
+                    <ul className="mt-2.5 list-disc list-inside space-y-1 text-xs text-foreground/80">
+                      {(exp.description || []).map((item: string, i: number) => (
+                        <li key={i}>{item}</li>
+                      ))}
+                    </ul>
                   </div>
-                  <div className="font-mono text-xs text-secondary font-semibold">{exp.company}</div>
-
-                  <ul className="mt-2.5 list-disc list-inside space-y-1 text-xs text-foreground/80">
-                    {exp.description.map((item: string, i: number) => (
-                      <li key={i}>{item}</li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Core Technical Competencies */}
-          <div className="mt-8">
-            <h2 className="font-mono text-xs font-extrabold uppercase tracking-widest text-primary">
-              {"// Core Technical Competencies"}
-            </h2>
+          {skills.length > 0 && (
+            <div className="mt-8">
+              <h2 className="font-mono text-xs font-extrabold uppercase tracking-widest text-primary">
+                {"// Core Technical Competencies"}
+              </h2>
 
-            <div className="mt-3 flex flex-wrap gap-2">
-              {skills.map((skill) => (
-                <span
-                  key={skill.name}
-                  className="rounded-lg border border-line bg-surface-2 px-2.5 py-1 font-mono text-xs font-bold text-foreground"
-                >
-                  {skill.name}
-                </span>
-              ))}
+              <div className="mt-3 flex flex-wrap gap-2">
+                {skills.map((skill) => (
+                  <span
+                    key={skill.name}
+                    className="rounded-lg border border-line bg-surface-2 px-2.5 py-1 font-mono text-xs font-bold text-foreground"
+                  >
+                    {skill.name}
+                  </span>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Education */}
           <div className="mt-8 border-t-2 border-line pt-6">

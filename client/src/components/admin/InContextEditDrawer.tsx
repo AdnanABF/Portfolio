@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Check, FileText, ImageIcon, Loader2, UploadCloud, X } from "lucide-react";
 import Image from "next/image";
 import {
+  createExperience,
+  createProject,
   createSkill,
   getPresignedUpload,
   updateExperience,
@@ -59,7 +61,7 @@ function parseInitialFormData(initialData: Record<string, unknown>): FormDataSta
   }
 
   let photoUrl = (initialData?.photoUrl as string) || "/adnan_photo.webp";
-  let cvUrl = (initialData?.cvUrl as string) || "/Adnan_CV.pdf";
+  let cvUrl = (initialData?.cvUrl as string) || "";
 
   if (initialData?.key === "hero_photo_cv" && typeof initialData?.value === "string") {
     try {
@@ -137,11 +139,34 @@ export function InContextEditDrawer({
     try {
       let savedData: Record<string, unknown> = { ...formData };
 
-      if (type === "project" && formData.id) {
-        await updateProject(formData.id, formData as Record<string, unknown>);
-      } else if (type === "experience" && formData.id) {
+      if (type === "project") {
+        const projectPayload = {
+          slug: formData.slug || formData.title?.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "project",
+          title: formData.title || "",
+          tagline: formData.tagline || "",
+          description: formData.description || "",
+          heroImageUrl: formData.heroImageUrl || formData.imageUrl || "",
+          tags: Array.isArray(formData.tags) ? formData.tags : (formData.techStack as string[]) || [],
+          liveUrl: formData.liveUrl || "",
+          githubUrl: formData.githubUrl || "",
+          isFeatured: Boolean(formData.isFeatured ?? true),
+          sortOrder: typeof formData.sortOrder === "number" ? formData.sortOrder : 1,
+          contentMarkdown: formData.contentMarkdown || "",
+        };
+        if (formData.id) {
+          await updateProject(formData.id, formData as Record<string, unknown>);
+          savedData = formData;
+        } else {
+          const created = await createProject(projectPayload);
+          savedData = { ...created, imageUrl: created.heroImageUrl, techStack: created.tags };
+        }
+      } else if (type === "experience") {
         const payload: Record<string, unknown> = {
           ...formData,
+          role: formData.role || "",
+          company: formData.company || "",
+          period: formData.period || "",
+          location: formData.location || "",
           achievements: (formData.achievementsText || "")
             .split("\n")
             .map((s) => s.trim())
@@ -151,8 +176,13 @@ export function InContextEditDrawer({
             .map((s) => s.trim())
             .filter(Boolean),
         };
-        await updateExperience(formData.id, payload);
-        savedData = payload;
+        if (formData.id) {
+          await updateExperience(formData.id, payload);
+          savedData = payload;
+        } else {
+          const created = await createExperience(payload);
+          savedData = { ...created, description: created.achievements || [] };
+        }
       } else if (type === "skill") {
         const skillPayload = {
           name: formData.name || "",
@@ -475,7 +505,7 @@ export function InContextEditDrawer({
                       value={formData.cvUrl || ""}
                       onChange={(e) => setFormData({ ...formData, cvUrl: e.target.value })}
                       className="w-full rounded-lg border-2 border-line bg-surface p-1.5 text-xs text-foreground focus:outline-primary font-mono"
-                      placeholder="/Adnan_CV.pdf or https://..."
+                      placeholder="https://... (or upload below)"
                     />
                     <div className="mt-2 flex items-center justify-between">
                       <label className="inline-flex items-center gap-1.5 rounded-lg border-2 border-line bg-accent-coral px-3 py-1 font-bold text-white hover:opacity-90 cursor-pointer text-xs">

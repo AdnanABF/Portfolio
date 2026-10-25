@@ -7,7 +7,6 @@ import { Card } from "@/components/ui/Card";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { useAdmin } from "@/components/admin/AdminContext";
 import { deleteSkill, getSkills } from "@/lib/api-client";
-import { SKILLS } from "@/lib/data";
 import type { Skill } from "@/lib/types";
 
 const DEFAULT_CATEGORIES: Array<"Modern" | "Microsoft" | "Tools" | "Legacy"> = [
@@ -17,21 +16,26 @@ const DEFAULT_CATEGORIES: Array<"Modern" | "Microsoft" | "Tools" | "Legacy"> = [
   "Legacy",
 ];
 
-export function Skills() {
+export function Skills({ initialSkills }: { initialSkills?: Skill[] }) {
   const { isEditMode, openEditor } = useAdmin();
-  const [items, setItems] = useState<Skill[]>(SKILLS);
+  const [items, setItems] = useState<Skill[]>(initialSkills || []);
 
   useEffect(() => {
+    if (initialSkills && initialSkills.length > 0) return;
     let isMounted = true;
     getSkills().then((data) => {
-      if (isMounted && data.length > 0) {
+      if (isMounted) {
         setItems(data);
       }
     });
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [initialSkills]);
+
+  if (items.length === 0 && !isEditMode) {
+    return null;
+  }
 
   const categories = Array.from(
     new Set([...DEFAULT_CATEGORIES, ...items.map((s) => s.category)])

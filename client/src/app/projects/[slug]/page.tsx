@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { ExternalLink, FolderGit2, Lock } from "lucide-react";
 import Image from "next/image";
@@ -6,12 +7,8 @@ import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/Badge";
 import { LinkButton } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { PROJECTS, getProjectBySlug } from "@/lib/data";
+import { getProject } from "@/lib/api-client";
 import { SITE_URL } from "@/lib/site";
-
-export function generateStaticParams() {
-  return PROJECTS.map((p) => ({ slug: p.slug }));
-}
 
 export async function generateMetadata({
   params,
@@ -19,7 +16,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const project = getProjectBySlug(slug);
+  const project = await getProject(slug);
   if (!project) return { title: "Project not found" };
   return {
     title: `${project.title} | Adnan Bin Farook`,
@@ -34,13 +31,13 @@ export async function generateMetadata({
   };
 }
 
-export default async function ProjectDetailPage({
+async function ProjectDetailContent({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const project = getProjectBySlug(slug);
+  const project = await getProject(slug);
   if (!project) notFound();
 
   return (
@@ -121,5 +118,23 @@ export default async function ProjectDetailPage({
         {SITE_URL}/projects/{project.slug}
       </p>
     </article>
+  );
+}
+
+export default function ProjectDetailPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-4xl px-6 pt-28 pb-16 md:px-12">
+          <div className="h-64 animate-pulse rounded-2xl border border-line bg-surface/50" />
+        </div>
+      }
+    >
+      <ProjectDetailContent params={params} />
+    </Suspense>
   );
 }

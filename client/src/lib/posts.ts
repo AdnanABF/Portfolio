@@ -1,12 +1,12 @@
 import type { ComponentType } from "react";
 import BuildingThisSite from "../../content/blog/building-this-site.mdx";
 import HelloWorld from "../../content/blog/hello-world.mdx";
-import { POSTS } from "./data";
+import { getPosts } from "./api-client";
 import type { PostItem } from "./types";
 
 export interface PostEntry {
   meta: PostItem;
-  Content: ComponentType;
+  Content?: ComponentType;
 }
 
 const CONTENT: Record<string, ComponentType> = {
@@ -14,13 +14,15 @@ const CONTENT: Record<string, ComponentType> = {
   "hello-world": HelloWorld,
 };
 
-export function getAllPosts(): PostItem[] {
-  return [...POSTS].sort((a, b) => (a.publishedAt < b.publishedAt ? 1 : -1));
+export async function getAllPosts(): Promise<PostItem[]> {
+  const posts = await getPosts();
+  return [...posts].sort((a, b) => (a.publishedAt < b.publishedAt ? 1 : -1));
 }
 
-export function getPost(slug: string): PostEntry | undefined {
-  const meta = POSTS.find((p) => p.slug === slug);
+export async function getPost(slug: string): Promise<PostEntry | undefined> {
+  const posts = await getPosts();
+  const meta = posts.find((p) => p.slug === slug);
+  if (!meta) return undefined;
   const Content = CONTENT[slug];
-  if (!meta || !Content) return undefined;
   return { meta, Content };
 }
