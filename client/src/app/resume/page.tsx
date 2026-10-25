@@ -22,7 +22,7 @@ export default function ResumePage() {
   };
 
   return (
-    <div className="min-h-screen bg-background py-12 px-4 sm:px-6">
+    <div className="min-h-screen bg-background pt-28 pb-16 px-4 sm:px-6">
       <div className="mx-auto max-w-4xl">
         {/* Top Control Bar (Hidden when printing) */}
         <div className="mb-8 flex items-center justify-between border-b-2 border-line pb-4 print:hidden">

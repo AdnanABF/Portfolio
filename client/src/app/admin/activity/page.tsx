@@ -25,16 +25,14 @@ export default function AdminActivityPage() {
 
   const refreshLogs = async () => {
     setLoading(true);
-    const token = localStorage.getItem("abf_admin_token") || "";
-    const data = await getAdminActivity(token);
+    const data = await getAdminActivity();
     setLogs(data);
     setLoading(false);
   };
 
   useEffect(() => {
     let isMounted = true;
-    const token = localStorage.getItem("abf_admin_token") || "";
-    getAdminActivity(token).then((data) => {
+    getAdminActivity().then((data) => {
       if (isMounted) {
         setLogs(data);
         setLoading(false);
@@ -54,7 +52,7 @@ export default function AdminActivityPage() {
   );
 
   return (
-    <div className="min-h-screen bg-background py-10 px-4 sm:px-8">
+    <div className="min-h-screen bg-background pt-28 pb-16 px-4 sm:px-8">
       <div className="mx-auto max-w-5xl">
         <Link
           href="/admin"

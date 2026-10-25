@@ -36,16 +36,14 @@ export default function AdminSystemLogsPage() {
 
   const refreshLogs = async () => {
     setLoading(true);
-    const token = localStorage.getItem("abf_admin_token") || "";
-    const data = await getAdminSystemLogs(token);
+    const data = await getAdminSystemLogs();
     setLogs(data);
     setLoading(false);
   };
 
   useEffect(() => {
     let isMounted = true;
-    const token = localStorage.getItem("abf_admin_token") || "";
-    getAdminSystemLogs(token).then((data) => {
+    getAdminSystemLogs().then((data) => {
       if (isMounted) {
         setLogs(data);
         setLoading(false);
@@ -62,7 +60,7 @@ export default function AdminSystemLogsPage() {
   });
 
   return (
-    <div className="min-h-screen bg-background py-10 px-4 sm:px-8">
+    <div className="min-h-screen bg-background pt-28 pb-16 px-4 sm:px-8">
       <div className="mx-auto max-w-5xl">
         <Link
           href="/admin"
