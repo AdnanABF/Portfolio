@@ -1,7 +1,6 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { AdminBar } from "./AdminBar";
 import { InContextEditDrawer } from "./InContextEditDrawer";
 import { getMe } from "@/lib/api-client";
 
@@ -16,7 +15,7 @@ interface AdminUser {
 
 interface DrawerState {
   isOpen: boolean;
-  type: "project" | "experience" | "setting";
+  type: "project" | "experience" | "setting" | "skill";
   initialData: Record<string, unknown> | null;
   onSaved?: (data: Record<string, unknown>) => void;
 }
@@ -29,7 +28,7 @@ interface AdminContextType {
   refreshAuth: () => Promise<void>;
   toggleEditMode: () => void;
   openEditor: (
-    type: "project" | "experience" | "setting",
+    type: "project" | "experience" | "setting" | "skill",
     initialData: Record<string, unknown>,
     onSaved?: (data: Record<string, unknown>) => void
   ) => void;
@@ -83,7 +82,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   };
 
   const openEditor = (
-    type: "project" | "experience" | "setting",
+    type: "project" | "experience" | "setting" | "skill",
     initialData: Record<string, unknown>,
     onSaved?: (data: Record<string, unknown>) => void
   ) => {
@@ -112,15 +111,10 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         closeEditor,
       }}
     >
-      {isAdmin && (
-        <AdminBar
-          isEditMode={isEditMode}
-          onToggleEditMode={toggleEditMode}
-        />
-      )}
       {children}
       {drawer.isOpen && drawer.initialData && (
         <InContextEditDrawer
+          key={`${drawer.type}-${drawer.initialData.id || drawer.initialData.key || drawer.initialData.name || Date.now()}`}
           isOpen={drawer.isOpen}
           type={drawer.type}
           initialData={drawer.initialData}

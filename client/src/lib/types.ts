@@ -1,4 +1,5 @@
 export interface Skill {
+  id?: string;
   name: string;
   category: "Modern" | "Microsoft" | "Legacy" | "Tools";
   level: number; // 0-100

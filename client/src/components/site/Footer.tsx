@@ -1,4 +1,4 @@
-import { Heart, Lock } from "lucide-react";
+import { Heart } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 import { YearNow } from "./YearNow";
@@ -19,15 +19,6 @@ export function Footer() {
           </Link>
           <Link href="/#contact" className="transition-colors hover:text-primary">
             Contact
-          </Link>
-          <Link
-            href="/admin"
-            className="flex items-center gap-1.5 opacity-60 transition-opacity hover:opacity-100 hover:text-primary"
-            title="Admin Login"
-            aria-label="Admin Login"
-          >
-            <Lock size={13} />
-            <span>Admin</span>
           </Link>
         </nav>
         <p className="flex items-center justify-center gap-2 font-mono text-sm text-muted">

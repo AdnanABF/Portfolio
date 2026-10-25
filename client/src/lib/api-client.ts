@@ -34,6 +34,7 @@ interface ApiExperience {
 }
 
 interface ApiSkill {
+  id?: string;
   name: string;
   category: string;
 }
@@ -147,6 +148,7 @@ export async function getSkills(): Promise<Skill[]> {
       ) || "Modern";
 
       return {
+        id: s.id,
         name: s.name,
         category,
         level: 80,
@@ -238,6 +240,9 @@ export async function apiLogin(email: string, password: string) {
     body: JSON.stringify({ email, password }),
   });
   if (!res.ok) {
+    if (res.status === 429) {
+      throw new Error("Too many login attempts. Please wait 15 minutes before trying again.");
+    }
     const err = await res.json().catch(() => ({}));
     throw new Error(err.message || "Login failed.");
   }
@@ -291,6 +296,37 @@ export async function updateExperience(id: string, dto: Record<string, unknown>)
   });
   if (!res.ok) throw new Error("Failed to update experience.");
   return await res.json();
+}
+
+export async function createSkill(dto: { name: string; category: string; iconName?: string; sortOrder?: number }) {
+  const res = await fetch(resolveUrl("/api/skills"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(dto),
+  });
+  if (!res.ok) throw new Error("Failed to create skill.");
+  return await res.json();
+}
+
+export async function updateSkill(id: string, dto: { name: string; category: string; iconName?: string; sortOrder?: number }) {
+  const res = await fetch(resolveUrl(`/api/skills/${id}`), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(dto),
+  });
+  if (!res.ok) throw new Error("Failed to update skill.");
+  return await res.json();
+}
+
+export async function deleteSkill(id: string) {
+  const res = await fetch(resolveUrl(`/api/skills/${id}`), {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error("Failed to delete skill.");
+  return true;
 }
 
 export async function getPresignedUpload(fileName: string, contentType: string, folder: string) {

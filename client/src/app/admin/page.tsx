@@ -58,35 +58,16 @@ export default function AdminDashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background py-10 px-4 sm:px-8">
+    <div className="min-h-screen bg-background pt-28 pb-16 px-4 sm:px-8">
       <div className="mx-auto max-w-6xl">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b-2 border-line pb-6 gap-4">
-          <div>
-            <div className="flex items-center gap-2 font-mono text-xs font-bold text-primary">
-              <ShieldCheck className="h-4 w-4" />
-              <span>SUPER ADMIN CMS & OBSERVABILITY</span>
-            </div>
-            <h1 className="mt-1 text-3xl font-extrabold text-foreground">
-              Welcome back, {user?.fullName || "Adnan"}
-            </h1>
+        <div className="border-b-2 border-line pb-6">
+          <div className="flex items-center gap-2 font-mono text-xs font-bold text-primary">
+            <ShieldCheck className="h-4 w-4" />
+            <span>SUPER ADMIN CMS & OBSERVABILITY</span>
           </div>
-
-          <div className="flex items-center gap-3">
-            <Link
-              href="/"
-              className="rounded-xl border-2 border-line bg-surface px-4 py-2 font-mono text-xs font-bold text-foreground hover:bg-cream shadow-[2px_2px_0px_var(--shadow-color)]"
-            >
-              Open Live Site →
-            </Link>
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-1.5 rounded-xl border-2 border-line bg-surface-2 px-4 py-2 font-mono text-xs font-bold text-accent-coral hover:bg-accent-coral/10"
-            >
-              <LogOut className="h-3.5 w-3.5" />
-              <span>Logout</span>
-            </button>
-          </div>
+          <h1 className="mt-1 text-3xl font-extrabold text-foreground">
+            Welcome back, {user?.fullName || "Adnan"}
+          </h1>
         </div>
 
         {/* Metrics Grid */}
@@ -146,13 +127,26 @@ export default function AdminDashboardPage() {
                 Edit your projects, experience timeline, bio, and upload new CV/photos directly on the public website with live re-rendering.
               </p>
             </div>
-            <Link
-              href="/"
-              className="mt-6 flex items-center justify-between rounded-xl border-2 border-line bg-accent-mint px-4 py-2.5 font-mono text-xs font-bold text-neutral-950 shadow-[2px_2px_0px_var(--shadow-color)] hover:-translate-y-0.5 transition-all"
-            >
-              <span>Launch In-Context Editor</span>
-              <ArrowRight className="h-4 w-4" />
-            </Link>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Link
+                href="/#projects"
+                className="rounded-lg border border-line bg-surface-2 px-3 py-1.5 font-mono text-xs font-bold text-foreground hover:bg-cream transition-all"
+              >
+                Projects →
+              </Link>
+              <Link
+                href="/#experience"
+                className="rounded-lg border border-line bg-surface-2 px-3 py-1.5 font-mono text-xs font-bold text-foreground hover:bg-cream transition-all"
+              >
+                Experience →
+              </Link>
+              <Link
+                href="/#skills"
+                className="rounded-lg border border-line bg-surface-2 px-3 py-1.5 font-mono text-xs font-bold text-foreground hover:bg-cream transition-all"
+              >
+                Skills →
+              </Link>
+            </div>
           </div>
 
           {/* Panel 2: Sessions & Security */}

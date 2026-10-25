@@ -54,7 +54,7 @@ export default function AdminSessionsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background py-10 px-4 sm:px-8">
+    <div className="min-h-screen bg-background pt-28 pb-16 px-4 sm:px-8">
       <div className="mx-auto max-w-5xl">
         <Link
           href="/admin"

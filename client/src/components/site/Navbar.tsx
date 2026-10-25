@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { UserMenu } from "@/components/site/UserMenu";
 import { LinkButton } from "@/components/ui/Button";
 import { NAV_ITEMS } from "@/lib/data";
 
@@ -71,6 +72,7 @@ export function Navbar() {
             Hire Me
           </LinkButton>
           <ThemeToggle />
+          <UserMenu />
 
           <button
             type="button"
