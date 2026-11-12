@@ -20,7 +20,7 @@ Backend Web API powering dynamic portfolio content, in-context CMS editing, tele
 - **Database**: PostgreSQL with Entity Framework Core migrations
 - **Caching**: ASP.NET Core Output Caching with tag-based invalidation
 - **Security & Resilience**:
-  - Proxy-aware client IP resolution (`X-Forwarded-For`, `X-Real-IP`)
+  - Client IP comes from `Connection.RemoteIpAddress`, rewritten by `UseForwardedHeaders` only for trusted proxies (`ForwardedHeaders:KnownNetworks`: loopback and Docker private ranges). Traefik (Coolify) is the only edge proxy; Cloudflare is DNS-only. Forwarded headers from any other source are ignored.
   - IP-partitioned rate limiting for login, contact submissions, and telemetry
   - RFC 7807 `ProblemDetails` with .NET 10 `IExceptionHandler`
 
