@@ -21,6 +21,17 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
     {
         builder.UseEnvironment("Development");
 
+        // Program startup seeds the admin via DbInitializer, which throws without credentials.
+        // Supply the same test admin used by ConfigureServices below.
+        builder.ConfigureAppConfiguration((_, config) =>
+        {
+            config.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Admin:Email"] = AdminEmail,
+                ["Admin:Password"] = AdminPassword
+            });
+        });
+
         var testConnectionString = Environment.GetEnvironmentVariable("TEST_CONNECTION_STRING")
             ?? "Host=localhost;Port=5432;Database=portfolio_test;Username=postgres;Password=postgres";
 
