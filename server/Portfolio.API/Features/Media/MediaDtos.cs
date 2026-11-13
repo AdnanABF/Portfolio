@@ -1,5 +1,18 @@
 namespace Portfolio.API.Features.Media;
 
+/// <summary>
+/// Multipart form for POST /api/media/upload. Grouping the file and its fields in one model
+/// is what lets Swagger document the endpoint (it cannot mix IFormFile with loose form fields).
+/// </summary>
+public class MediaUploadRequest
+{
+    public IFormFile File { get; set; } = default!;
+    public string? Category { get; set; } = "general";
+    public Guid? EntityId { get; set; }
+    public string? EntityType { get; set; }
+    public string? AccessPolicy { get; set; } = "Inherit";
+}
+
 public class MediaUploadResponse
 {
     public Guid Id { get; set; }

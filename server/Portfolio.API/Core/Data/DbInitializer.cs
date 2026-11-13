@@ -13,6 +13,17 @@ public static class DbInitializer
         IConfiguration config,
         ILogger logger)
     {
+        // Read admin credentials before the try block on purpose. The catch below logs and
+        // swallows errors, so a missing password must throw here to stop startup.
+        // Values come from environment variables, user-secrets or a secret store.
+        var adminEmail = config["Admin:Email"] ?? config["SuperAdmin:Email"];
+        var adminPassword = config["Admin:Password"] ?? config["SuperAdmin:Password"];
+        if (string.IsNullOrWhiteSpace(adminEmail) || string.IsNullOrWhiteSpace(adminPassword))
+        {
+            throw new InvalidOperationException(
+                "Admin:Email and Admin:Password must be configured (environment variables or user-secrets).");
+        }
+
         try
         {
             // Ensure Database Exists & Migrations Applied
@@ -32,13 +43,6 @@ public static class DbInitializer
             }
 
             // 2. Initial Admin User
-            var adminEmail = config["Admin:Email"] 
-                ?? config["SuperAdmin:Email"] 
-                ?? "adnanabf@gmail.com";
-            var adminPassword = config["Admin:Password"] 
-                ?? config["SuperAdmin:Password"] 
-                ?? "Admin@Adnan123!";
-
             var existingAdmin = await userManager.FindByEmailAsync(adminEmail);
             if (existingAdmin == null)
             {

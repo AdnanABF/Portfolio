@@ -22,14 +22,10 @@ public class MediaController : ControllerBase
     [HttpPost("upload")]
     [RequestSizeLimit(20 * 1024 * 1024)] // 20 MB max
     public async Task<ActionResult<MediaUploadResponse>> Upload(
-        [FromForm] IFormFile file,
-        [FromForm] string? category = "general",
-        [FromForm] Guid? entityId = null,
-        [FromForm] string? entityType = null,
-        [FromForm] string? accessPolicy = "Inherit",
+        [FromForm] MediaUploadRequest request,
         CancellationToken cancellationToken = default)
     {
-        var validation = await _fileValidator.ValidateAsync(file, cancellationToken);
+        var validation = await _fileValidator.ValidateAsync(request.File, cancellationToken);
         if (!validation.IsValid)
         {
             return BadRequest(validation.ToDictionary());
@@ -43,11 +39,11 @@ public class MediaController : ControllerBase
         }
 
         var result = await _mediaService.UploadAsync(
-            file,
-            category ?? "general",
-            entityId,
-            entityType,
-            accessPolicy ?? "Inherit",
+            request.File,
+            request.Category ?? "general",
+            request.EntityId,
+            request.EntityType,
+            request.AccessPolicy ?? "Inherit",
             userId,
             cancellationToken);
 

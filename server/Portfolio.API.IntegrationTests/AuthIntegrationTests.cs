@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Portfolio.API.Core.Data;
 using Portfolio.API.Features.Auth;
@@ -256,9 +257,17 @@ public class AuthIntegrationTests : IClassFixture<CustomWebApplicationFactory>
     }
 
     [Fact]
-    public async Task Login_RateLimiting_Is_Partitioned_By_Client_Ip()
+    public async Task Login_RateLimit_Ignores_Forwarded_Header_From_Untrusted_Source()
     {
-        var client = _factory.CreateClient();
+        // The test client connects from loopback, which is trusted by default. Replace the
+        // trusted network list so loopback is not a proxy: X-Forwarded-For must then be ignored.
+        var factory = _factory.WithWebHostBuilder(builder =>
+            builder.ConfigureAppConfiguration((_, config) =>
+                config.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["ForwardedHeaders:KnownNetworks:0"] = "203.0.113.0/24"
+                })));
+        var client = factory.CreateClient();
         var clientIp = "198.51.100.77";
         var differentIp = "198.51.100.88";
 
@@ -285,14 +294,15 @@ public class AuthIntegrationTests : IClassFixture<CustomWebApplicationFactory>
         var blockedRes = await client.SendAsync(blockedReq);
         Assert.Equal(HttpStatusCode.TooManyRequests, blockedRes.StatusCode);
 
-        // A different IP must NOT be blocked
-        var otherReq = new HttpRequestMessage(HttpMethod.Post, "/api/auth/login")
+        // A spoofed X-Forwarded-For value must NOT bypass the limit. The source is not a trusted
+        // proxy, so the header is ignored and the same bucket applies.
+        var spoofedReq = new HttpRequestMessage(HttpMethod.Post, "/api/auth/login")
         {
             Content = JsonContent.Create(new { email = "admin@example.com", password = "WrongPassword123!" })
         };
-        otherReq.Headers.Add("X-Forwarded-For", differentIp);
+        spoofedReq.Headers.Add("X-Forwarded-For", differentIp);
 
-        var otherRes = await client.SendAsync(otherReq);
-        Assert.NotEqual(HttpStatusCode.TooManyRequests, otherRes.StatusCode);
+        var spoofedRes = await client.SendAsync(spoofedReq);
+        Assert.Equal(HttpStatusCode.TooManyRequests, spoofedRes.StatusCode);
     }
 }

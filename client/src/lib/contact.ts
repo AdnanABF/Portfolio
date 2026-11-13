@@ -22,9 +22,6 @@ export const contactSchema = z.object({
 export type ContactInput = z.infer<typeof contactSchema>;
 
 export const MIN_FORM_FILL_MS = 4000;
-export const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
-export const RATE_LIMIT_MAX = 3;
-export const COOLDOWN_MS = 30 * 1000;
 
 function formatSlugTitle(slug: string): string {
   return slug

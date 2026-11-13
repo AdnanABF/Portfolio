@@ -22,6 +22,7 @@ using Portfolio.API.Features.Projects;
 using Portfolio.API.Features.Settings;
 using Portfolio.API.Features.Skills;
 using Portfolio.API.Features.Telemetry;
+using Portfolio.API.Infrastructure.Caching;
 using Portfolio.API.Infrastructure.ExceptionHandling;
 using Portfolio.API.Infrastructure.Extensions;
 using Portfolio.API.Infrastructure.Logging;
@@ -229,6 +230,11 @@ builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddOutputCache(options =>
 {
     options.DefaultExpirationTimeSpan = TimeSpan.FromMinutes(10);
+
+    // Draft-aware content: cached for anonymous visitors only. Signed-in (admin) requests
+    // bypass the cache so draft responses can never be served to the public.
+    options.AddPolicy("projects", b => b.AddPolicy<PublicOnlyCachePolicy>().Tag("projects"));
+    options.AddPolicy("blog", b => b.AddPolicy<PublicOnlyCachePolicy>().Tag("blog"));
 });
 
 // 12. FluentValidation
