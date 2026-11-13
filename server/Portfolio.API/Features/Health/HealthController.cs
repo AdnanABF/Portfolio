@@ -18,7 +18,16 @@ public class HealthController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<HealthResponseDto>> GetHealth(CancellationToken cancellationToken)
     {
-        var health = await _healthService.CheckHealthAsync(cancellationToken);
-        return Ok(health);
+        try
+        {
+            var health = await _healthService.CheckHealthAsync(cancellationToken);
+            return Ok(health);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // The caller hung up mid-check (a timeout, a page reload, a closed tab). This happens all the time
+            // for a health badge that polls, nobody is waiting for the answer, and it is not an error.
+            return StatusCode(StatusCodes.Status499ClientClosedRequest);
+        }
     }
 }

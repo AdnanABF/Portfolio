@@ -2,6 +2,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Portfolio.API.Core.Entities;
 
 namespace Portfolio.API.Features.Contact;
 
@@ -11,11 +12,19 @@ public class ContactController : ControllerBase
 {
     private readonly IContactService _contactService;
     private readonly IValidator<ContactRequestDto> _validator;
+    private readonly IValidator<ContactInquiryQuery> _queryValidator;
+    private readonly IValidator<BulkInquiryStatusDto> _bulkValidator;
 
-    public ContactController(IContactService contactService, IValidator<ContactRequestDto> validator)
+    public ContactController(
+        IContactService contactService,
+        IValidator<ContactRequestDto> validator,
+        IValidator<ContactInquiryQuery> queryValidator,
+        IValidator<BulkInquiryStatusDto> bulkValidator)
     {
         _contactService = contactService;
         _validator = validator;
+        _queryValidator = queryValidator;
+        _bulkValidator = bulkValidator;
     }
 
     [AllowAnonymous]
@@ -36,24 +45,45 @@ public class ContactController : ControllerBase
 
     [HttpGet("inquiries")]
     [Authorize(Policy = "AdminOnly")]
-    public async Task<ActionResult<List<ContactInquiryDto>>> GetInquiries([FromQuery] string? status, CancellationToken cancellationToken)
+    public async Task<ActionResult<ContactInquiryPage>> GetInquiries([FromQuery] ContactInquiryQuery query, CancellationToken cancellationToken)
     {
-        var inquiries = await _contactService.GetInquiriesAsync(status, cancellationToken);
-        return Ok(inquiries);
+        var validation = await _queryValidator.ValidateAsync(query, cancellationToken);
+        if (!validation.IsValid)
+        {
+            return BadRequest(validation.ToDictionary());
+        }
+
+        var page = await _contactService.GetInquiriesAsync(query, cancellationToken);
+        return Ok(page);
     }
 
     [HttpPut("inquiries/{id:guid}/status")]
     [Authorize(Policy = "AdminOnly")]
     public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] string status, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(status))
+        if (!ContactInquiryStatuses.IsValid(status))
         {
-            return BadRequest(new { message = "Status cannot be empty." });
+            return BadRequest(new { message = "Status must be unread, read, replied or archived." });
         }
 
         var updated = await _contactService.UpdateInquiryStatusAsync(id, status, cancellationToken);
         if (!updated) return NotFound();
 
-        return Ok(new { id, status });
+        return Ok(new { id, status = status.Trim().ToLowerInvariant() });
+    }
+
+    /// <summary>Sets one status on several messages at once (for example "archive the selected messages").</summary>
+    [HttpPost("inquiries/bulk-status")]
+    [Authorize(Policy = "AdminOnly")]
+    public async Task<IActionResult> BulkUpdateStatus([FromBody] BulkInquiryStatusDto dto, CancellationToken cancellationToken)
+    {
+        var validation = await _bulkValidator.ValidateAsync(dto, cancellationToken);
+        if (!validation.IsValid)
+        {
+            return BadRequest(validation.ToDictionary());
+        }
+
+        var updated = await _contactService.BulkUpdateInquiryStatusAsync(dto.Ids, dto.Status, cancellationToken);
+        return Ok(new { updated });
     }
 }

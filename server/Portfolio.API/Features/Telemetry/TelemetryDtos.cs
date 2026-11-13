@@ -16,6 +16,7 @@ public class AnalyticsSummaryDto
     public int TotalPageViews { get; set; }
     public int TotalCvDownloads { get; set; }
     public int TotalInquiries { get; set; }
+    public int UnreadInquiries { get; set; }
     public int ActiveSessionsCount { get; set; }
     public List<TopProjectDto> TopProjects { get; set; } = new();
     public List<ReferrerCountDto> TopReferrers { get; set; } = new();

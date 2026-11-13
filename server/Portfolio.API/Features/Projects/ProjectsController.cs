@@ -2,6 +2,8 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OutputCaching;
+using Microsoft.AspNetCore.RateLimiting;
+using Portfolio.API.Features.Contact;
 using Portfolio.API.Infrastructure.Extensions;
 
 namespace Portfolio.API.Features.Projects;
@@ -12,11 +14,19 @@ public class ProjectsController : ControllerBase
 {
     private readonly IProjectService _projectService;
     private readonly IValidator<ProjectUpsertDto> _validator;
+    private readonly IContactService _contactService;
+    private readonly IValidator<RepoAccessRequestDto> _accessRequestValidator;
 
-    public ProjectsController(IProjectService projectService, IValidator<ProjectUpsertDto> validator)
+    public ProjectsController(
+        IProjectService projectService,
+        IValidator<ProjectUpsertDto> validator,
+        IContactService contactService,
+        IValidator<RepoAccessRequestDto> accessRequestValidator)
     {
         _projectService = projectService;
         _validator = validator;
+        _contactService = contactService;
+        _accessRequestValidator = accessRequestValidator;
     }
 
     [AllowAnonymous]
@@ -37,6 +47,38 @@ public class ProjectsController : ControllerBase
         var project = await _projectService.GetProjectBySlugAsync(slug, User.IsAdmin(), cancellationToken);
         if (project == null) return NotFound();
         return Ok(project);
+    }
+
+    /// <summary>
+    /// A visitor asks for access to a private project's repository. Stored in the contact inbox as a
+    /// repo request, and the owner and the visitor are emailed. Only published, private projects accept requests.
+    /// </summary>
+    [AllowAnonymous]
+    [HttpPost("{slug}/access-requests")]
+    [EnableRateLimiting("access-request-rate-limit")]
+    [RequestSizeLimit(20_000)]
+    public async Task<IActionResult> RequestAccess(string slug, [FromBody] RepoAccessRequestDto dto, CancellationToken cancellationToken = default)
+    {
+        var validation = await _accessRequestValidator.ValidateAsync(dto, cancellationToken);
+        if (!validation.IsValid)
+        {
+            return BadRequest(validation.ToDictionary());
+        }
+
+        // Published projects only (drafts are never visible here, even to admins).
+        var project = await _projectService.GetProjectBySlugAsync(slug, includeDrafts: false, cancellationToken);
+        if (project == null)
+        {
+            return NotFound();
+        }
+
+        if (!project.IsRepoPrivate)
+        {
+            return BadRequest(new { message = "This project's repository is not private, so no access request is needed." });
+        }
+
+        var inquiry = await _contactService.SubmitRepoRequestAsync(project.Id, project.Title, dto, cancellationToken);
+        return Ok(new { success = true, id = inquiry.Id, message = "Access request submitted successfully." });
     }
 
     [HttpPost]

@@ -392,6 +392,9 @@ namespace Portfolio.API.Core.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<Guid?>("ProjectId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -402,7 +405,16 @@ namespace Portfolio.API.Core.Data.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("ProjectId");
+
+                    b.HasIndex("Type");
 
                     b.ToTable("ContactInquiries");
                 });
@@ -568,6 +580,9 @@ namespace Portfolio.API.Core.Data.Migrations
                         .HasColumnType("boolean");
 
                     b.Property<bool>("IsPublished")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsRepoPrivate")
                         .HasColumnType("boolean");
 
                     b.Property<string>("KeyMetricsJson")
@@ -879,6 +894,16 @@ namespace Portfolio.API.Core.Data.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Portfolio.API.Core.Entities.ContactInquiry", b =>
+                {
+                    b.HasOne("Portfolio.API.Core.Entities.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Project");
                 });
 
             modelBuilder.Entity("Portfolio.API.Core.Entities.UserSession", b =>

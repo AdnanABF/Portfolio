@@ -11,12 +11,11 @@ import {
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { useForm, useWatch } from "react-hook-form";
-import { sendContact } from "@/lib/actions";
+import { useForm } from "react-hook-form";
+import { sendContact, sendRepoRequest } from "@/lib/actions";
 import {
   accessRequestPrefill,
   contactSchema,
-  isAccessRequest,
   type ContactInput,
 } from "@/lib/contact";
 
@@ -33,7 +32,6 @@ export function ContactForm() {
   const {
     register,
     handleSubmit,
-    control,
     setValue,
     reset,
     formState: { errors, isSubmitting, isDirty },
@@ -61,12 +59,16 @@ export function ContactForm() {
     setValue("message", prefill.message, { shouldValidate: true, shouldDirty: true });
   }, [prefill, setValue]);
 
-  const subjectValue = useWatch({ control, name: "subject" });
-  const accessRequest = isAccessRequest(subjectValue ?? "");
+  // Opened from a private project's lock button (?request=<slug>): this is a repo access request.
+  // It goes to the project endpoint, not the contact endpoint, and the subject is set by the server.
+  const accessRequest = Boolean(requestSlug && prefill);
 
   const onSubmit = async (data: ContactInput) => {
     setStatus({ kind: "idle" });
-    const result = await sendContact(data);
+    const result =
+      accessRequest && requestSlug
+        ? await sendRepoRequest(requestSlug, data)
+        : await sendContact(data);
     if (result.ok) {
       setStatus({ kind: "success" });
       reset();
@@ -140,7 +142,11 @@ export function ContactForm() {
           id="contact-subject"
           {...register("subject")}
           placeholder="Let's Connect / Freelance Project"
-          className="w-full neo-input p-3 outline-none placeholder:text-muted/60"
+          // Locked for repo requests: the request is about this project and nothing else.
+          readOnly={accessRequest}
+          className={`w-full neo-input p-3 outline-none placeholder:text-muted/60 ${
+            accessRequest ? "cursor-not-allowed opacity-70" : ""
+          }`}
         />
         {errors.subject && (
           <FieldError message={errors.subject.message} />

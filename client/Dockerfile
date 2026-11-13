@@ -1,5 +1,6 @@
 # Multi-stage image for Coolify (method: Dockerfile, base directory: client/).
-# No secrets here — EMAILJS_* keys are set in Coolify's environment UI.
+# No secrets here — runtime variables (API URLs) are set in Coolify's environment UI.
+# Email is sent by the API (Resend), so the client holds no email keys.
 FROM node:22-alpine AS base
 
 FROM base AS deps

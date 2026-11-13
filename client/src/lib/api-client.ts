@@ -1,9 +1,32 @@
-import type { ExperienceItem, PostItem, ProjectItem, Skill } from "./types";
+import type {
+  ExperienceItem,
+  InquiryPage,
+  InquiryQuery,
+  PostItem,
+  ProjectItem,
+  Skill,
+} from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "";
 
 export function resolveUrl(path: string): string {
   return API_BASE ? `${API_BASE}${path}` : path;
+}
+
+/** An API call that failed with an HTTP status, so callers can tell "signed out" (401) from other failures. */
+export class ApiError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+/** True when the error means the admin session is missing, expired or revoked. */
+export function isUnauthorized(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 401;
 }
 
 function safeFetch(url: string, init?: RequestInit, timeoutMs = 3000): Promise<Response> {
@@ -25,6 +48,7 @@ interface ApiProject {
   liveUrl?: string;
   heroImageUrl?: string;
   isPublished?: boolean;
+  isRepoPrivate?: boolean;
 }
 
 interface ApiPost {
@@ -64,7 +88,7 @@ export async function getProjects(): Promise<ProjectItem[]> {
       githubUrl: p.githubUrl,
       liveUrl: p.liveUrl,
       imageUrl: p.heroImageUrl || "/og-image.png",
-      isPrivate: !p.liveUrl,
+      isPrivate: p.isRepoPrivate ?? false,
       isPublished: p.isPublished ?? true,
     }));
   } catch {
@@ -88,7 +112,7 @@ export async function getProject(slug: string): Promise<ProjectItem | undefined>
       githubUrl: p.githubUrl,
       liveUrl: p.liveUrl,
       imageUrl: p.heroImageUrl || "/og-image.png",
-      isPrivate: !p.liveUrl,
+      isPrivate: p.isRepoPrivate ?? false,
       isPublished: p.isPublished ?? true,
     };
   } catch {
@@ -459,16 +483,28 @@ export async function getAdminAnalytics() {
   }
 }
 
-export async function getAdminInquiries() {
-  try {
-    const res = await safeFetch(resolveUrl("/api/contact/inquiries"), {
-      credentials: "include",
-    });
-    if (!res.ok) return [];
-    return await res.json();
-  } catch {
-    return [];
-  }
+/**
+ * One page of the admin inbox. Search, filters and paging are done by the API.
+ * Throws when the request fails, so the inbox can show an error instead of an empty list.
+ */
+export async function getAdminInquiries(query: InquiryQuery = {}): Promise<InquiryPage> {
+  const params = new URLSearchParams();
+  if (query.search) params.set("search", query.search);
+  if (query.status) params.set("status", query.status);
+  if (query.type) params.set("type", query.type);
+  if (query.from) params.set("from", query.from);
+  if (query.to) params.set("to", query.to);
+  if (query.page) params.set("page", String(query.page));
+  if (query.pageSize) params.set("pageSize", String(query.pageSize));
+
+  const qs = params.toString();
+  const res = await safeFetch(
+    resolveUrl(`/api/contact/inquiries${qs ? `?${qs}` : ""}`),
+    { credentials: "include" },
+    10000,
+  );
+  if (!res.ok) throw new ApiError("Failed to load messages.", res.status);
+  return await res.json();
 }
 
 export async function updateInquiryStatus(id: string, status: string) {
@@ -478,6 +514,19 @@ export async function updateInquiryStatus(id: string, status: string) {
     credentials: "include",
     body: JSON.stringify(status),
   });
-  if (!res.ok) throw new Error("Failed to update inquiry status.");
+  if (!res.ok) throw new ApiError("Failed to update inquiry status.", res.status);
   return await res.json();
+}
+
+/** Sets the same status on several messages. Returns how many were updated. */
+export async function bulkUpdateInquiryStatus(ids: string[], status: string): Promise<number> {
+  const res = await fetch(resolveUrl("/api/contact/inquiries/bulk-status"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ ids, status }),
+  });
+  if (!res.ok) throw new ApiError("Failed to update the selected messages.", res.status);
+  const body = await res.json();
+  return typeof body.updated === "number" ? body.updated : 0;
 }

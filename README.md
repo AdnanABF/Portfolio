@@ -10,7 +10,8 @@ Portfolio Web/
            # Self-contained via Dockerfile (Coolify).
   server/  # ASP.NET Core (.NET 10) Web API backend
            # Vertical Slice architecture across 11 feature domains, PostgreSQL,
-           # ASP.NET Core Identity cookie auth, Output Caching, and Serilog telemetry.
+           # ASP.NET Core Identity cookie auth, Output Caching, Serilog telemetry,
+           # and email (contact messages + repo access requests) via Resend.
 ```
 
 ## Branching & Workflow

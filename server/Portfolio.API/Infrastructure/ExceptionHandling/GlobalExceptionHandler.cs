@@ -23,6 +23,18 @@ public class GlobalExceptionHandler : IExceptionHandler
         Exception exception,
         CancellationToken cancellationToken)
     {
+        // The client hung up while the request was running (timeout, reload, closed tab). That is not a server
+        // error: nobody is waiting for a response, so do not log an error, write a SystemLog row or answer 500.
+        if (exception is OperationCanceledException && httpContext.RequestAborted.IsCancellationRequested)
+        {
+            if (!httpContext.Response.HasStarted)
+            {
+                httpContext.Response.StatusCode = StatusCodes.Status499ClientClosedRequest;
+            }
+
+            return true;
+        }
+
         _logger.LogError(exception, "Unhandled exception occurred at {Path}", httpContext.Request.Path);
 
         var (statusCode, title) = exception switch

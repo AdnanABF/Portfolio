@@ -57,6 +57,7 @@ public class TelemetryService : ITelemetryService
         var totalViews = await _context.VisitorAnalytics.CountAsync(cancellationToken);
         var totalCv = await _context.CvDownloads.CountAsync(cancellationToken);
         var totalInquiries = await _context.ContactInquiries.CountAsync(cancellationToken);
+        var unreadInquiries = await _context.ContactInquiries.CountAsync(i => i.Status == ContactInquiryStatuses.Unread, cancellationToken);
         var activeSessions = await _context.UserSessions.CountAsync(
             s => !s.IsRevoked && (DateTime.UtcNow - s.LastActiveAt).TotalMinutes < 5, 
             cancellationToken);
@@ -89,6 +90,7 @@ public class TelemetryService : ITelemetryService
             TotalPageViews = totalViews,
             TotalCvDownloads = totalCv,
             TotalInquiries = totalInquiries,
+            UnreadInquiries = unreadInquiries,
             ActiveSessionsCount = activeSessions,
             TopProjects = topProjects,
             TopReferrers = topReferrers,
