@@ -24,6 +24,7 @@ interface FormDataState {
   liveUrl?: string;
   githubUrl?: string;
   isPublished?: boolean;
+  isRepoPrivate?: boolean;
   role?: string;
   company?: string;
   period?: string;
@@ -83,6 +84,8 @@ function parseInitialFormData(initialData: Record<string, unknown>): FormDataSta
       typeof initialData?.isPublished === "boolean"
         ? initialData.isPublished
         : true,
+    // Project items carry the flag as `isPrivate`; the API field is `isRepoPrivate`.
+    isRepoPrivate: Boolean(initialData?.isRepoPrivate ?? initialData?.isPrivate ?? false),
     name: (initialData?.name as string) || "",
     category: (initialData?.category as string) || "Modern",
     level: typeof initialData?.level === "number" ? initialData.level : 80,
@@ -150,6 +153,7 @@ export function InContextEditDrawer({
           githubUrl: formData.githubUrl || "",
           isFeatured: Boolean(formData.isFeatured ?? true),
           isPublished: Boolean(formData.isPublished ?? true),
+          isRepoPrivate: Boolean(formData.isRepoPrivate),
           sortOrder: typeof formData.sortOrder === "number" ? formData.sortOrder : 1,
           contentMarkdown: formData.contentMarkdown || "",
         };
@@ -157,11 +161,22 @@ export function InContextEditDrawer({
           await updateProject(formData.id, {
             ...formData,
             isPublished: Boolean(formData.isPublished ?? true),
+            isRepoPrivate: Boolean(formData.isRepoPrivate),
           });
-          savedData = { ...formData, isPublished: Boolean(formData.isPublished ?? true) };
+          savedData = {
+            ...formData,
+            isPublished: Boolean(formData.isPublished ?? true),
+            isRepoPrivate: Boolean(formData.isRepoPrivate),
+            isPrivate: Boolean(formData.isRepoPrivate),
+          };
         } else {
           const created = await createProject(projectPayload);
-          savedData = { ...created, imageUrl: created.heroImageUrl, techStack: created.tags };
+          savedData = {
+            ...created,
+            imageUrl: created.heroImageUrl,
+            techStack: created.tags,
+            isPrivate: Boolean(created.isRepoPrivate),
+          };
         }
       } else if (type === "experience") {
         const payload: Record<string, unknown> = {
@@ -353,6 +368,24 @@ export function InContextEditDrawer({
                     </label>
                     <span className="text-[11px] text-muted block leading-tight">
                       When unchecked, this project and its media are saved as a draft and hidden from public visitors.
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 rounded-xl border-2 border-line bg-surface-2 p-3">
+                  <input
+                    type="checkbox"
+                    id="isRepoPrivate"
+                    checked={formData.isRepoPrivate ?? false}
+                    onChange={(e) => setFormData({ ...formData, isRepoPrivate: e.target.checked })}
+                    className="mt-0.5 h-4 w-4 rounded accent-primary cursor-pointer"
+                  />
+                  <div>
+                    <label htmlFor="isRepoPrivate" className="font-bold text-foreground cursor-pointer block text-xs">
+                      Private Repository
+                    </label>
+                    <span className="text-[11px] text-muted block leading-tight">
+                      When checked, visitors see a lock instead of the GitHub link and can send a repo access request.
                     </span>
                   </div>
                 </div>

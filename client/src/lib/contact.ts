@@ -42,7 +42,3 @@ export function accessRequestPrefill(slug: string | null): {
     message: `Hi Adnan, I'm interested in viewing the source code for "${title}". Could you please provide access to the repository?`,
   };
 }
-
-export function isAccessRequest(subject: string): boolean {
-  return subject.toLowerCase().includes("request access");
-}

@@ -7,6 +7,7 @@ import {
   CheckCircle,
   Clock,
   Loader2,
+  Lock,
   Mail,
   RefreshCw,
   Reply,
@@ -20,13 +21,25 @@ interface InquiryItem {
   subject: string;
   message: string;
   status: string;
+  /** "contact" for normal messages, "repo_request" for repo access requests. */
+  type?: string;
+  projectId?: string | null;
+  projectTitle?: string | null;
+  projectSlug?: string | null;
   createdAt: string;
 }
+
+const TYPE_FILTERS: { value: string; label: string }[] = [
+  { value: "all", label: "ALL TYPES" },
+  { value: "contact", label: "MESSAGES" },
+  { value: "repo_request", label: "REPO REQUESTS" },
+];
 
 export default function AdminInboxPage() {
   const [inquiries, setInquiries] = useState<InquiryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const fetchInquiries = async () => {
@@ -60,6 +73,9 @@ export default function AdminInboxPage() {
   };
 
   const filteredInquiries = inquiries.filter((i) => {
+    // Older rows may have no type; they are normal messages.
+    const inquiryType = i.type ?? "contact";
+    if (typeFilter !== "all" && inquiryType !== typeFilter) return false;
     if (filter === "all") return true;
     return i.status?.toLowerCase() === filter.toLowerCase();
   });
@@ -113,6 +129,23 @@ export default function AdminInboxPage() {
           </div>
         </div>
 
+        {/* Type Filter */}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {TYPE_FILTERS.map((t) => (
+            <button
+              key={t.value}
+              onClick={() => setTypeFilter(t.value)}
+              className={`rounded-lg border-2 border-line px-3 py-1 font-mono text-xs font-bold transition-all cursor-pointer ${
+                typeFilter === t.value
+                  ? "bg-primary text-black shadow-[2px_2px_0px_var(--shadow-color)]"
+                  : "bg-surface text-muted hover:text-foreground"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
         {/* Inquiries Feed */}
         <div className="mt-6">
           {loading ? (
@@ -129,6 +162,10 @@ export default function AdminInboxPage() {
               {filteredInquiries.map((inq) => {
                 const isUnread = inq.status?.toLowerCase() === "unread";
                 const isReplied = inq.status?.toLowerCase() === "replied";
+                const isRepoRequest = inq.type === "repo_request";
+                const replySubject = isRepoRequest
+                  ? `Re: Repo access request${inq.projectTitle ? ` for ${inq.projectTitle}` : ""}`
+                  : `Re: ${inq.subject || "Portfolio Inquiry"}`;
 
                 return (
                   <div
@@ -144,12 +181,25 @@ export default function AdminInboxPage() {
                             {inq.name}
                           </span>
                           <a
-                            href={`mailto:${inq.email}?subject=Re: ${encodeURIComponent(inq.subject || "Your Inquiry")}`}
+                            href={`mailto:${inq.email}?subject=${encodeURIComponent(replySubject)}`}
                             className="font-mono text-xs text-primary hover:underline inline-flex items-center gap-1"
                           >
                             <Mail className="h-3 w-3" />
                             {inq.email}
                           </a>
+                          {isRepoRequest && (
+                            <span className="inline-flex items-center gap-1 rounded bg-accent-yellow/30 px-1.5 py-0.5 font-mono text-[10px] font-bold text-foreground border border-line">
+                              <Lock className="h-2.5 w-2.5" />
+                              REPO REQUEST
+                              {inq.projectSlug ? (
+                                <Link href={`/projects/${inq.projectSlug}`} className="underline">
+                                  {inq.projectTitle}
+                                </Link>
+                              ) : (
+                                <span>{inq.projectTitle ?? "(deleted project)"}</span>
+                              )}
+                            </span>
+                          )}
                           {isUnread && (
                             <span className="inline-flex items-center gap-1 rounded bg-primary/20 px-1.5 py-0.5 font-mono text-[10px] font-bold text-primary border border-primary">
                               <Clock className="h-2.5 w-2.5" />
@@ -209,7 +259,7 @@ export default function AdminInboxPage() {
                       </div>
 
                       <a
-                        href={`mailto:${inq.email}?subject=Re: ${encodeURIComponent(inq.subject || "Portfolio Inquiry")}`}
+                        href={`mailto:${inq.email}?subject=${encodeURIComponent(replySubject)}`}
                         className="inline-flex items-center gap-1.5 rounded-lg border-2 border-line bg-primary px-3 py-1 font-mono text-xs font-bold text-black shadow-[2px_2px_0px_var(--shadow-color)] hover:translate-y-[-1px] transition-all"
                       >
                         <Reply className="h-3.5 w-3.5" />

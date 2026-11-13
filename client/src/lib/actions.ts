@@ -1,7 +1,6 @@
 "use server";
 
 import { headers } from "next/headers";
-import emailjs from "@emailjs/nodejs";
 import { MIN_FORM_FILL_MS, contactSchema, type ContactInput } from "./contact";
 
 export interface SendResult {
@@ -10,10 +9,15 @@ export interface SendResult {
   retryAfterSec?: number;
 }
 
-// Rate limiting is enforced only by the API (contact-rate-limit policy, keyed on the
-// real client IP). Nothing is limited here, because an in-memory limiter in this process
-// could be bypassed through client-controlled headers and resets on every restart.
+// The API does the real work: it saves the message, applies the rate limit (keyed on the real
+// client IP) and sends the emails through Resend. Nothing is limited or emailed from here.
 const RATE_LIMITED_MESSAGE = "Too many messages sent. Please try again in about 10 minutes.";
+const NOT_CONFIGURED_MESSAGE = "The contact service is not configured yet. Please email directly.";
+
+function apiBase(): string | undefined {
+  // Prefer the internal URL so the hop stays on the private Docker network.
+  return (process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL)?.replace(/\/$/, "");
+}
 
 // Real visitor IP chain as set by the edge proxy (Traefik). The API trusts this container's
 // network hop and walks the chain itself, so it must be forwarded unchanged.
@@ -22,13 +26,8 @@ async function forwardedChain(): Promise<string | null> {
   return h.get("x-forwarded-for");
 }
 
-export async function sendContact(input: ContactInput): Promise<SendResult> {
-  const parsed = contactSchema.safeParse(input);
-  if (!parsed.success) {
-    return { ok: false, error: "Please fix the highlighted fields." };
-  }
-  const data = parsed.data;
-
+/** Spam checks shared by both forms. Returns a result to send back, or null to continue. */
+function earlyResult(data: ContactInput): SendResult | null {
   // Honeypot: pretend success so bots learn nothing.
   if (data.website?.trim()) {
     return { ok: true };
@@ -38,93 +37,107 @@ export async function sendContact(input: ContactInput): Promise<SendResult> {
     return { ok: false, error: "Please take a moment before sending." };
   }
 
-  // Prefer the internal URL so the hop stays on the private Docker network.
-  const apiBase = (process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL)?.replace(/\/$/, "");
-  if (apiBase) {
-    const chain = await forwardedChain();
-    try {
-      const res = await fetch(`${apiBase}/api/contact`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(chain ? { "X-Forwarded-For": chain } : {}),
-        },
-        body: JSON.stringify({
-          name: data.name,
-          email: data.email,
-          subject: data.subject,
-          message: data.message,
-        }),
-      });
+  return null;
+}
 
-      if (res.ok) {
-        return { ok: true };
-      }
-
-      if (res.status === 429) {
-        return { ok: false, error: RATE_LIMITED_MESSAGE };
-      }
-
-      return {
-        ok: false,
-        error: "Failed to transmit via backend API. Please try again.",
-      };
-    } catch {
-      return {
-        ok: false,
-        error: "Unable to reach backend service. Please email directly.",
-      };
-    }
+async function postToApi(
+  path: string,
+  body: Record<string, string>,
+  failureMessage: string,
+): Promise<SendResult> {
+  const base = apiBase();
+  if (!base) {
+    return { ok: false, error: NOT_CONFIGURED_MESSAGE };
   }
 
-  // Fallback when no API is configured: server-side EmailJS (same account + templates v1
-  // used in the browser). All keys stay on the server. This path has no rate limit.
-  const serviceId = process.env.EMAILJS_SERVICE_ID;
-  const templateId = process.env.EMAILJS_TEMPLATE_ID;
-  const autoreplyTemplateId = process.env.EMAILJS_AUTOREPLY_TEMPLATE_ID;
-  const publicKey = process.env.EMAILJS_PUBLIC_KEY;
-  const privateKey = process.env.EMAILJS_PRIVATE_KEY;
-  if (!serviceId || !templateId || !publicKey || !privateKey) {
-    return {
-      ok: false,
-      error: "Email service is not configured yet. Please email directly.",
-    };
-  }
-
-  const stamp = new Date().toLocaleString("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-
-  // Same template params v1 sent — existing templates work unchanged.
-  const templateParams = {
-    name: data.name,
-    email: data.email,
-    subject: data.subject,
-    message: data.message,
-    time: stamp,
-  };
-  const auth = { publicKey, privateKey };
-
+  const chain = await forwardedChain();
   try {
-    // 1. Notify the owner.
-    await emailjs.send(serviceId, templateId, templateParams, auth);
+    const res = await fetch(`${base}${path}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(chain ? { "X-Forwarded-For": chain } : {}),
+      },
+      body: JSON.stringify(body),
+    });
 
-    // 2. Auto-reply to the sender (best-effort).
-    if (autoreplyTemplateId) {
-      await emailjs.send(
-        serviceId,
-        autoreplyTemplateId,
-        templateParams,
-        auth,
-      );
+    if (res.ok) {
+      return { ok: true };
     }
 
-    return { ok: true };
+    if (res.status === 429) {
+      return { ok: false, error: RATE_LIMITED_MESSAGE };
+    }
+
+    // The API explains a refusal in `message` (for example a repo that is not private).
+    if (res.status === 400 || res.status === 404) {
+      const detail = await res.json().catch(() => null);
+      if (detail && typeof detail.message === "string") {
+        return { ok: false, error: detail.message };
+      }
+    }
+
+    return { ok: false, error: failureMessage };
   } catch {
     return {
       ok: false,
-      error: "Failed to transmit. Please check your connection and try again.",
+      error: "Unable to reach backend service. Please email directly.",
     };
   }
+}
+
+/** Normal contact message: saved by the API, which emails me and sends the visitor an acknowledgement. */
+export async function sendContact(input: ContactInput): Promise<SendResult> {
+  const parsed = contactSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: "Please fix the highlighted fields." };
+  }
+  const data = parsed.data;
+
+  const early = earlyResult(data);
+  if (early) return early;
+
+  return postToApi(
+    "/api/contact",
+    {
+      name: data.name,
+      email: data.email,
+      subject: data.subject,
+      message: data.message,
+    },
+    "Failed to send your message. Please try again.",
+  );
+}
+
+/**
+ * Repo access request for a private project. It goes to the project endpoint, not the contact
+ * endpoint: the API stores it as a repo request, and the subject is generated on the server.
+ */
+export async function sendRepoRequest(
+  projectSlug: string,
+  input: ContactInput,
+): Promise<SendResult> {
+  const parsed = contactSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: "Please fix the highlighted fields." };
+  }
+  const data = parsed.data;
+
+  const early = earlyResult(data);
+  if (early) return early;
+
+  // The slug becomes part of the URL path, so only accept the shape project slugs have.
+  if (!/^[a-z0-9-]{1,100}$/.test(projectSlug)) {
+    return { ok: false, error: "This project could not be found." };
+  }
+
+  return postToApi(
+    `/api/projects/${projectSlug}/access-requests`,
+    {
+      name: data.name,
+      email: data.email,
+      message: data.message,
+    },
+    "Failed to send your request. Please try again.",
+  );
 }

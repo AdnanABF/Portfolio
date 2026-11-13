@@ -25,6 +25,7 @@ interface ApiProject {
   liveUrl?: string;
   heroImageUrl?: string;
   isPublished?: boolean;
+  isRepoPrivate?: boolean;
 }
 
 interface ApiPost {
@@ -64,7 +65,7 @@ export async function getProjects(): Promise<ProjectItem[]> {
       githubUrl: p.githubUrl,
       liveUrl: p.liveUrl,
       imageUrl: p.heroImageUrl || "/og-image.png",
-      isPrivate: !p.liveUrl,
+      isPrivate: p.isRepoPrivate ?? false,
       isPublished: p.isPublished ?? true,
     }));
   } catch {
@@ -88,7 +89,7 @@ export async function getProject(slug: string): Promise<ProjectItem | undefined>
       githubUrl: p.githubUrl,
       liveUrl: p.liveUrl,
       imageUrl: p.heroImageUrl || "/og-image.png",
-      isPrivate: !p.liveUrl,
+      isPrivate: p.isRepoPrivate ?? false,
       isPublished: p.isPublished ?? true,
     };
   } catch {
