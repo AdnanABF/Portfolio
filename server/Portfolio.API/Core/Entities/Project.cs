@@ -35,6 +35,12 @@ public class Project
 
     public bool IsPublished { get; set; } = true;
 
+    /// <summary>
+    /// True when the source repository is private. Visitors then see a lock and can send
+    /// a repo access request instead of a GitHub link.
+    /// </summary>
+    public bool IsRepoPrivate { get; set; } = false;
+
     public int SortOrder { get; set; } = 0;
 
     /// <summary>

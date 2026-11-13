@@ -23,6 +23,7 @@ using Portfolio.API.Features.Settings;
 using Portfolio.API.Features.Skills;
 using Portfolio.API.Features.Telemetry;
 using Portfolio.API.Infrastructure.Caching;
+using Portfolio.API.Infrastructure.Email;
 using Portfolio.API.Infrastructure.ExceptionHandling;
 using Portfolio.API.Infrastructure.Extensions;
 using Portfolio.API.Infrastructure.Logging;
@@ -192,6 +193,16 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0
             }));
 
+    options.AddPolicy("access-request-rate-limit", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.GetClientIpAddress(),
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 3,
+                Window = TimeSpan.FromMinutes(10),
+                QueueLimit = 0
+            }));
+
     options.AddPolicy("telemetry-rate-limit", httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: httpContext.GetClientIpAddress(),
@@ -239,6 +250,9 @@ builder.Services.AddOutputCache(options =>
 
 // 12. FluentValidation
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
+
+// 12b. Email sending (Resend). Outside Development the Resend settings are required.
+builder.Services.AddEmailSending(builder.Configuration, builder.Environment);
 
 // 13. Application & Feature Services
 builder.Services.AddHttpContextAccessor();

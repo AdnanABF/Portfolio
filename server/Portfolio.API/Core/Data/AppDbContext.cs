@@ -61,6 +61,17 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid
              .OnDelete(DeleteBehavior.SetNull);
         });
 
+        // ContactInquiry -> Project (repo access requests); deleting a project keeps the inquiry
+        builder.Entity<ContactInquiry>(b =>
+        {
+            b.HasIndex(i => i.Type);
+            b.HasIndex(i => i.ProjectId);
+            b.HasOne(i => i.Project)
+             .WithMany()
+             .HasForeignKey(i => i.ProjectId)
+             .OnDelete(DeleteBehavior.SetNull);
+        });
+
         // MediaAssets index
         builder.Entity<MediaAsset>(b =>
         {

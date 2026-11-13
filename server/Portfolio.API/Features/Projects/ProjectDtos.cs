@@ -14,6 +14,7 @@ public class ProjectDto
     public string GithubUrl { get; set; } = string.Empty;
     public bool IsFeatured { get; set; }
     public bool IsPublished { get; set; } = true;
+    public bool IsRepoPrivate { get; set; }
     public int SortOrder { get; set; }
     public string? KeyMetricsJson { get; set; }
     public string ContentMarkdown { get; set; } = string.Empty;
@@ -33,6 +34,7 @@ public class ProjectUpsertDto
     public string GithubUrl { get; set; } = string.Empty;
     public bool IsFeatured { get; set; }
     public bool IsPublished { get; set; } = true;
+    public bool IsRepoPrivate { get; set; }
     public int SortOrder { get; set; }
     public string? KeyMetricsJson { get; set; }
     public string ContentMarkdown { get; set; } = string.Empty;

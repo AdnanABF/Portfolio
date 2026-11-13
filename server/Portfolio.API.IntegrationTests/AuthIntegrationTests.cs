@@ -229,6 +229,7 @@ public class AuthIntegrationTests : IClassFixture<CustomWebApplicationFactory>
             "api/health",
             "api/projects",
             "api/projects/{slug}",
+            "api/projects/{slug}/access-requests",
             "api/blog",
             "api/blog/{slug}",
             "api/skills",
