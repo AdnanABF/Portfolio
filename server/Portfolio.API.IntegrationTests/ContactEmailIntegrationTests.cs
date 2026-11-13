@@ -245,8 +245,9 @@ public class ContactEmailIntegrationTests : IClassFixture<CustomWebApplicationFa
         });
         login.EnsureSuccessStatusCode();
 
-        var inquiries = await admin.GetFromJsonAsync<JsonElement>("/api/contact/inquiries");
-        var item = inquiries.EnumerateArray().Single(i => i.GetProperty("email").GetString() == email);
+        // Search by the unique email so the row is found however many other messages the test database holds.
+        var page = await admin.GetFromJsonAsync<JsonElement>($"/api/contact/inquiries?search={Uri.EscapeDataString(email)}");
+        var item = page.GetProperty("items").EnumerateArray().Single(i => i.GetProperty("email").GetString() == email);
 
         Assert.Equal("repo_request", item.GetProperty("type").GetString());
         Assert.Equal("Secret Project", item.GetProperty("projectTitle").GetString());

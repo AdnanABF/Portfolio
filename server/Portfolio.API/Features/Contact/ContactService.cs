@@ -39,7 +39,7 @@ public class ContactService : IContactService
             Email = dto.Email,
             Subject = dto.Subject,
             Message = dto.Message,
-            Status = "unread",
+            Status = ContactInquiryStatuses.Unread,
             Type = ContactInquiryTypes.Contact,
             CreatedAt = DateTime.UtcNow
         };
@@ -63,7 +63,7 @@ public class ContactService : IContactService
             // The subject is built on the server; the visitor only supplies name, email and message.
             Subject = ContactEmailTemplates.SingleLine($"Request access: {projectTitle}", 200),
             Message = dto.Message,
-            Status = "unread",
+            Status = ContactInquiryStatuses.Unread,
             Type = ContactInquiryTypes.RepoRequest,
             ProjectId = projectId,
             CreatedAt = DateTime.UtcNow
@@ -79,17 +79,52 @@ public class ContactService : IContactService
         return ToDto(inquiry, projectTitle, null);
     }
 
-    public async Task<List<ContactInquiryDto>> GetInquiriesAsync(string? status = null, CancellationToken cancellationToken = default)
+    public async Task<ContactInquiryPage> GetInquiriesAsync(ContactInquiryQuery query, CancellationToken cancellationToken = default)
     {
-        var query = _context.ContactInquiries.AsNoTracking();
+        var inquiries = _context.ContactInquiries.AsNoTracking().AsQueryable();
 
-        if (!string.IsNullOrWhiteSpace(status))
+        // Status: one status, or everything except archived (the inbox view) when none is given.
+        var status = query.Status?.Trim().ToLowerInvariant();
+        inquiries = string.IsNullOrEmpty(status)
+            ? inquiries.Where(i => i.Status != ContactInquiryStatuses.Archived)
+            : inquiries.Where(i => i.Status == status);
+
+        var type = query.Type?.Trim().ToLowerInvariant();
+        if (!string.IsNullOrEmpty(type))
         {
-            query = query.Where(i => i.Status.ToLower() == status.ToLower());
+            inquiries = inquiries.Where(i => i.Type == type);
         }
 
-        return await query
+        if (query.From.HasValue)
+        {
+            var from = query.From.Value.UtcDateTime;
+            inquiries = inquiries.Where(i => i.CreatedAt >= from);
+        }
+
+        if (query.To.HasValue)
+        {
+            var to = query.To.Value.UtcDateTime;
+            inquiries = inquiries.Where(i => i.CreatedAt < to);
+        }
+
+        var search = query.Search?.Trim();
+        if (!string.IsNullOrEmpty(search))
+        {
+            var pattern = $"%{EscapeLikePattern(search)}%";
+            inquiries = inquiries.Where(i =>
+                EF.Functions.ILike(i.Name, pattern) ||
+                EF.Functions.ILike(i.Email, pattern) ||
+                EF.Functions.ILike(i.Subject, pattern) ||
+                EF.Functions.ILike(i.Message, pattern));
+        }
+
+        var totalCount = await inquiries.CountAsync(cancellationToken);
+
+        var items = await inquiries
             .OrderByDescending(i => i.CreatedAt)
+            .ThenByDescending(i => i.Id) // keeps the order stable when two messages share a timestamp
+            .Skip((query.Page - 1) * query.PageSize)
+            .Take(query.PageSize)
             .Select(i => new ContactInquiryDto
             {
                 Id = i.Id,
@@ -105,6 +140,18 @@ public class ContactService : IContactService
                 CreatedAt = i.CreatedAt
             })
             .ToListAsync(cancellationToken);
+
+        var unreadCount = await _context.ContactInquiries
+            .CountAsync(i => i.Status == ContactInquiryStatuses.Unread, cancellationToken);
+
+        return new ContactInquiryPage
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = query.Page,
+            PageSize = query.PageSize,
+            UnreadCount = unreadCount
+        };
     }
 
     public async Task<bool> UpdateInquiryStatusAsync(Guid id, string status, CancellationToken cancellationToken = default)
@@ -112,12 +159,33 @@ public class ContactService : IContactService
         var inquiry = await _context.ContactInquiries.FindAsync(new object[] { id }, cancellationToken);
         if (inquiry == null) return false;
 
-        inquiry.Status = status.ToLowerInvariant();
+        inquiry.Status = status.Trim().ToLowerInvariant();
         await _context.SaveChangesAsync(cancellationToken);
 
         await _activityLogger.LogAsync("INQUIRY_STATUS_UPDATE", "ContactInquiry", id.ToString(), $"Updated status to {inquiry.Status}");
         return true;
     }
+
+    public async Task<int> BulkUpdateInquiryStatusAsync(IReadOnlyCollection<Guid> ids, string status, CancellationToken cancellationToken = default)
+    {
+        var normalized = status.Trim().ToLowerInvariant();
+        var idList = ids.Distinct().ToList();
+
+        var updated = await _context.ContactInquiries
+            .Where(i => idList.Contains(i.Id))
+            .ExecuteUpdateAsync(s => s.SetProperty(i => i.Status, normalized), cancellationToken);
+
+        if (updated > 0)
+        {
+            await _activityLogger.LogAsync("INQUIRY_BULK_STATUS_UPDATE", "ContactInquiry", "bulk", $"Set {updated} inquiries to {normalized}");
+        }
+
+        return updated;
+    }
+
+    /// <summary>Escapes the characters that mean something in a LIKE pattern, so a search for "50%" finds "50%".</summary>
+    private static string EscapeLikePattern(string value) =>
+        value.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
 
     /// <summary>
     /// Sends the notification to the owner, then the acknowledgement to the visitor. The inquiry is already

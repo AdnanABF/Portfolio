@@ -1,4 +1,5 @@
 using FluentValidation;
+using Portfolio.API.Core.Entities;
 
 namespace Portfolio.API.Features.Contact;
 
@@ -22,6 +23,53 @@ public class ContactRequestValidator : AbstractValidator<ContactRequestDto>
         RuleFor(x => x.Message)
             .NotEmpty().WithMessage("Message is required.")
             .MinimumLength(5).WithMessage("Message must be at least 5 characters long.");
+    }
+}
+
+public class ContactInquiryQueryValidator : AbstractValidator<ContactInquiryQuery>
+{
+    public static readonly int[] AllowedPageSizes = { 10, 20, 30, 50 };
+
+    public ContactInquiryQueryValidator()
+    {
+        RuleFor(x => x.Search)
+            .MaximumLength(100).WithMessage("Search must not exceed 100 characters.");
+
+        RuleFor(x => x.Status)
+            .Must(s => string.IsNullOrWhiteSpace(s) || ContactInquiryStatuses.IsValid(s))
+            .WithMessage("Status must be unread, read, replied or archived.");
+
+        RuleFor(x => x.Type)
+            .Must(t => string.IsNullOrWhiteSpace(t) || ContactInquiryTypes.IsValid(t))
+            .WithMessage("Type must be contact or repo_request.");
+
+        RuleFor(x => x.Page)
+            .GreaterThanOrEqualTo(1).WithMessage("Page must be 1 or higher.");
+
+        RuleFor(x => x.PageSize)
+            .Must(size => AllowedPageSizes.Contains(size))
+            .WithMessage("Page size must be 10, 20, 30 or 50.");
+
+        RuleFor(x => x)
+            .Must(x => x.From == null || x.To == null || x.From <= x.To)
+            .OverridePropertyName("From")
+            .WithMessage("The start date must not be after the end date.");
+    }
+}
+
+public class BulkInquiryStatusValidator : AbstractValidator<BulkInquiryStatusDto>
+{
+    public const int MaxIds = 100;
+
+    public BulkInquiryStatusValidator()
+    {
+        RuleFor(x => x.Ids)
+            .NotEmpty().WithMessage("Select at least one message.")
+            .Must(ids => ids.Count <= MaxIds).WithMessage($"At most {MaxIds} messages can be updated at once.");
+
+        RuleFor(x => x.Status)
+            .Must(ContactInquiryStatuses.IsValid)
+            .WithMessage("Status must be unread, read, replied or archived.");
     }
 }
 

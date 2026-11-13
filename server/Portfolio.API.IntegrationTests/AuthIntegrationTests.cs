@@ -27,6 +27,7 @@ public class AuthIntegrationTests : IClassFixture<CustomWebApplicationFactory>
         (HttpMethod.Get, "/api/admin/system-logs"),
         (HttpMethod.Get, "/api/contact/inquiries"),
         (HttpMethod.Put, "/api/contact/inquiries/00000000-0000-0000-0000-000000000001/status"),
+        (HttpMethod.Post, "/api/contact/inquiries/bulk-status"),
         (HttpMethod.Post, "/api/projects"),
         (HttpMethod.Put, "/api/projects/00000000-0000-0000-0000-000000000001"),
         (HttpMethod.Delete, "/api/projects/00000000-0000-0000-0000-000000000001"),

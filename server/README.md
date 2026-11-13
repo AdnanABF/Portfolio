@@ -33,6 +33,14 @@ Shared sending lives in `Infrastructure/Email` (`IEmailSender`, `ResendEmailSend
 - A failed email is logged and never fails the request; the message is already saved and visible in the admin inbox.
 - Settings are in the `Resend` section (see `.env.example`). Outside Development the API refuses to start without `Resend:ApiKey`, `FromAddress`, `NotifyFromAddress` and `OwnerEmail`. In Development with no key, emails are written to the log instead of being sent.
 
+## Admin inbox API
+
+Messages and repo requests are managed through admin-only endpoints on `/api/contact`:
+
+- `GET /api/contact/inquiries`: one page of the inbox. Query options: `search` (name, email, subject or message, case-insensitive), `status` (`unread`, `read`, `replied`, `archived`; empty means everything except archived), `type` (`contact`, `repo_request`), `from` (inclusive) and `to` (exclusive) as ISO instants, `page` (from 1) and `pageSize` (10, 20, 30 or 50, default 10). Returns `items`, `totalCount`, `page`, `pageSize` and `unreadCount` (all unread messages, whatever the filters).
+- `PUT /api/contact/inquiries/{id}/status`: sets one status (body is the status as a JSON string). Unknown statuses are rejected.
+- `POST /api/contact/inquiries/bulk-status`: body `{ "ids": [...], "status": "archived" }`, up to 100 ids. Returns `{ "updated": n }`.
+
 ## Running Locally
 
 ```powershell

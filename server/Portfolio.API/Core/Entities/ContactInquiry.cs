@@ -9,6 +9,23 @@ public static class ContactInquiryTypes
 
     /// <summary>A request for access to a private project repository.</summary>
     public const string RepoRequest = "repo_request";
+
+    public static readonly string[] All = { Contact, RepoRequest };
+
+    public static bool IsValid(string? type) => type != null && All.Contains(type.Trim().ToLowerInvariant());
+}
+
+/// <summary>The states of an inbox message. Replied implies read; archived messages are hidden from the default view.</summary>
+public static class ContactInquiryStatuses
+{
+    public const string Unread = "unread";
+    public const string Read = "read";
+    public const string Replied = "replied";
+    public const string Archived = "archived";
+
+    public static readonly string[] All = { Unread, Read, Replied, Archived };
+
+    public static bool IsValid(string? status) => status != null && All.Contains(status.Trim().ToLowerInvariant());
 }
 
 public class ContactInquiry
@@ -28,7 +45,7 @@ public class ContactInquiry
     public string Message { get; set; } = string.Empty;
 
     [MaxLength(20)]
-    public string Status { get; set; } = "unread"; // "unread", "read", "replied", "starred", "archived"
+    public string Status { get; set; } = ContactInquiryStatuses.Unread; // see ContactInquiryStatuses
 
     /// <summary>See <see cref="ContactInquiryTypes"/>.</summary>
     [MaxLength(20)]

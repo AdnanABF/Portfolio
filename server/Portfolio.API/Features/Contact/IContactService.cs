@@ -10,6 +10,11 @@ public interface IContactService
     /// </summary>
     Task<ContactInquiryDto> SubmitRepoRequestAsync(Guid projectId, string projectTitle, RepoAccessRequestDto dto, CancellationToken cancellationToken = default);
 
-    Task<List<ContactInquiryDto>> GetInquiriesAsync(string? status = null, CancellationToken cancellationToken = default);
+    /// <summary>One page of the admin inbox, filtered and searched. The query must already be validated.</summary>
+    Task<ContactInquiryPage> GetInquiriesAsync(ContactInquiryQuery query, CancellationToken cancellationToken = default);
+
     Task<bool> UpdateInquiryStatusAsync(Guid id, string status, CancellationToken cancellationToken = default);
+
+    /// <summary>Sets the same status on several messages. Returns how many were updated.</summary>
+    Task<int> BulkUpdateInquiryStatusAsync(IReadOnlyCollection<Guid> ids, string status, CancellationToken cancellationToken = default);
 }
