@@ -1,4 +1,3 @@
-using System.Net;
 using Microsoft.AspNetCore.Http;
 
 namespace Portfolio.API.Infrastructure.Extensions;
