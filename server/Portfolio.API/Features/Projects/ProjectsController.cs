@@ -2,6 +2,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OutputCaching;
+using Portfolio.API.Infrastructure.Extensions;
 
 namespace Portfolio.API.Features.Projects;
 
@@ -20,22 +21,20 @@ public class ProjectsController : ControllerBase
 
     [AllowAnonymous]
     [HttpGet]
-    [OutputCache(Tags = ["projects"])]
+    [OutputCache(PolicyName = "projects")]
     public async Task<ActionResult<List<ProjectDto>>> GetAll([FromQuery] bool includeDrafts = false, CancellationToken cancellationToken = default)
     {
-        var isAdmin = User.Identity?.IsAuthenticated == true && (User.IsInRole("Admin") || User.IsInRole("SuperAdmin"));
-        var allowedIncludeDrafts = includeDrafts && isAdmin;
-        var projects = await _projectService.GetAllProjectsAsync(allowedIncludeDrafts, cancellationToken);
+        // Drafts are only ever returned to admins, whatever the query string says.
+        var projects = await _projectService.GetAllProjectsAsync(includeDrafts && User.IsAdmin(), cancellationToken);
         return Ok(projects);
     }
 
     [AllowAnonymous]
     [HttpGet("{slug}")]
-    [OutputCache(Tags = ["projects"])]
+    [OutputCache(PolicyName = "projects")]
     public async Task<ActionResult<ProjectDto>> GetBySlug(string slug, CancellationToken cancellationToken = default)
     {
-        var isAdmin = User.Identity?.IsAuthenticated == true && (User.IsInRole("Admin") || User.IsInRole("SuperAdmin"));
-        var project = await _projectService.GetProjectBySlugAsync(slug, isAdmin, cancellationToken);
+        var project = await _projectService.GetProjectBySlugAsync(slug, User.IsAdmin(), cancellationToken);
         if (project == null) return NotFound();
         return Ok(project);
     }

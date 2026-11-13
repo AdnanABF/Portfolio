@@ -35,10 +35,15 @@ public class BlogService : IBlogService
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<BlogPostDto?> GetPostBySlugAsync(string slug, CancellationToken cancellationToken = default)
+    public async Task<BlogPostDto?> GetPostBySlugAsync(string slug, bool includeDrafts = false, CancellationToken cancellationToken = default)
     {
-        var post = await _context.BlogPosts
-            .AsNoTracking()
+        var query = _context.BlogPosts.AsNoTracking();
+        if (!includeDrafts)
+        {
+            query = query.Where(p => p.IsPublished);
+        }
+
+        var post = await query
             .FirstOrDefaultAsync(p => p.Slug.ToLower() == slug.ToLower(), cancellationToken);
 
         return post?.ToDto();

@@ -2,6 +2,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OutputCaching;
+using Portfolio.API.Infrastructure.Extensions;
 
 namespace Portfolio.API.Features.Blog;
 
@@ -20,19 +21,20 @@ public class BlogController : ControllerBase
 
     [AllowAnonymous]
     [HttpGet]
-    [OutputCache(Tags = ["blog"], VaryByQueryKeys = ["includeDrafts"])]
+    [OutputCache(PolicyName = "blog")]
     public async Task<ActionResult<List<BlogPostDto>>> GetAll([FromQuery] bool includeDrafts = false, CancellationToken cancellationToken = default)
     {
-        var posts = await _blogService.GetAllPostsAsync(includeDrafts, cancellationToken);
+        // Drafts are only ever returned to admins, whatever the query string says.
+        var posts = await _blogService.GetAllPostsAsync(includeDrafts && User.IsAdmin(), cancellationToken);
         return Ok(posts);
     }
 
     [AllowAnonymous]
     [HttpGet("{slug}")]
-    [OutputCache(Tags = ["blog"])]
+    [OutputCache(PolicyName = "blog")]
     public async Task<ActionResult<BlogPostDto>> GetBySlug(string slug, CancellationToken cancellationToken)
     {
-        var post = await _blogService.GetPostBySlugAsync(slug, cancellationToken);
+        var post = await _blogService.GetPostBySlugAsync(slug, User.IsAdmin(), cancellationToken);
         if (post == null) return NotFound();
         return Ok(post);
     }
