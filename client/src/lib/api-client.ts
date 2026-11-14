@@ -1,10 +1,14 @@
 import type {
+  ActivityLogPage,
+  ActivityLogQuery,
   ExperienceItem,
   InquiryPage,
   InquiryQuery,
   PostItem,
   ProjectItem,
   Skill,
+  SystemLogPage,
+  SystemLogQuery,
 } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "";
@@ -447,28 +451,56 @@ export async function revokeSession(id: string) {
   return await res.json();
 }
 
-export async function getAdminActivity() {
-  try {
-    const res = await safeFetch(resolveUrl("/api/admin/activity"), {
-      credentials: "include",
-    });
-    if (!res.ok) return [];
-    return await res.json();
-  } catch {
-    return [];
+/** Builds "?a=1&b=2" from a query object, leaving out empty values. */
+function logQueryString(query: object): string {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== undefined && value !== "") params.set(key, String(value));
   }
+  const qs = params.toString();
+  return qs ? `?${qs}` : "";
 }
 
-export async function getAdminSystemLogs() {
-  try {
-    const res = await safeFetch(resolveUrl("/api/admin/system-logs"), {
-      credentials: "include",
-    });
-    if (!res.ok) return [];
-    return await res.json();
-  } catch {
-    return [];
+/**
+ * Reads a paged response and fails when it is not one (for example an older API still returning a bare list),
+ * so the page shows "could not load" instead of silently showing no logs.
+ */
+async function readPage<T extends { items: unknown[]; totalCount: number }>(res: Response, what: string): Promise<T> {
+  const body = await res.json().catch(() => null);
+  if (!body || !Array.isArray(body.items) || typeof body.totalCount !== "number") {
+    throw new ApiError(`Unexpected response while loading ${what}.`, 502);
   }
+  return body as T;
+}
+
+/** One page of the admin activity log. Throws when the request fails, so the page can show an error. */
+export async function getAdminActivity(query: ActivityLogQuery = {}): Promise<ActivityLogPage> {
+  const res = await safeFetch(
+    resolveUrl(`/api/admin/activity${logQueryString(query)}`),
+    { credentials: "include" },
+    10000,
+  );
+  if (!res.ok) throw new ApiError("Failed to load activity logs.", res.status);
+  return await readPage<ActivityLogPage>(res, "activity logs");
+}
+
+/** One page of the admin system (error) log. Throws when the request fails, so the page can show an error. */
+export async function getAdminSystemLogs(query: SystemLogQuery = {}): Promise<SystemLogPage> {
+  const res = await safeFetch(
+    resolveUrl(`/api/admin/system-logs${logQueryString(query)}`),
+    { credentials: "include" },
+    10000,
+  );
+  if (!res.ok) throw new ApiError("Failed to load system logs.", res.status);
+  const page = await readPage<SystemLogPage>(res, "system logs");
+  if (
+    typeof page.errorCount !== "number" ||
+    typeof page.warningCount !== "number" ||
+    typeof page.informationCount !== "number"
+  ) {
+    throw new ApiError("Unexpected response while loading system logs.", 502);
+  }
+  return page;
 }
 
 export async function getAdminAnalytics() {

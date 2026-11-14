@@ -110,7 +110,7 @@ public class ContactService : IContactService
         var search = query.Search?.Trim();
         if (!string.IsNullOrEmpty(search))
         {
-            var pattern = $"%{EscapeLikePattern(search)}%";
+            var pattern = $"%{Portfolio.API.Infrastructure.Querying.LikeEscaper.Escape(search)}%";
             inquiries = inquiries.Where(i =>
                 EF.Functions.ILike(i.Name, pattern) ||
                 EF.Functions.ILike(i.Email, pattern) ||
@@ -182,10 +182,6 @@ public class ContactService : IContactService
 
         return updated;
     }
-
-    /// <summary>Escapes the characters that mean something in a LIKE pattern, so a search for "50%" finds "50%".</summary>
-    private static string EscapeLikePattern(string value) =>
-        value.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
 
     /// <summary>
     /// Sends the notification to the owner, then the acknowledgement to the visitor. The inquiry is already

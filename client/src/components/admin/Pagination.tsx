@@ -12,6 +12,8 @@ interface PaginationProps {
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
   disabled?: boolean;
+  /** Accessible name of the page-size control, for example "Messages per page". */
+  sizeLabel?: string;
 }
 
 /** Page numbers to show: first, last, and the current page with one neighbour each side; gaps become "…". */
@@ -41,6 +43,7 @@ export function Pagination({
   onPageChange,
   onPageSizeChange,
   disabled = false,
+  sizeLabel = "Items per page",
 }: PaginationProps) {
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const current = Math.min(page, totalPages);
@@ -59,7 +62,7 @@ export function Pagination({
           <Dropdown
             variant="inline"
             placement="top"
-            ariaLabel="Messages per page"
+            ariaLabel={sizeLabel}
             value={String(pageSize)}
             options={pageSizeOptions.map((size) => ({ value: String(size), label: String(size) }))}
             onChange={(value) => onPageSizeChange(Number(value))}

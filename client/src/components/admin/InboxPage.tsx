@@ -34,6 +34,7 @@ import {
   isUnauthorized,
   updateInquiryStatus,
 } from "@/lib/api-client";
+import { dayStartIso, isIsoDay, nextDayStartIso, parsePositiveInt } from "@/lib/dates";
 import type { InquiryItem, InquiryPage, InquiryStatus } from "@/lib/types";
 
 // ---------------------------------------------------------------------------
@@ -91,28 +92,6 @@ function actionsFor(status: InquiryStatus): StatusAction[] {
       // action so the message can still be sorted into a known state instead of breaking the row.
       return [ACTIONS.read, ACTIONS.unread, ACTIONS.replied, ACTIONS.archived];
   }
-}
-
-function parsePositiveInt(value: string | null, fallback: number): number {
-  const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed >= 1 ? parsed : fallback;
-}
-
-function isIsoDay(value: string): boolean {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(new Date(`${value}T00:00:00`).getTime());
-}
-
-/** Start of the picked day in the browser's time zone, as an ISO instant (inclusive lower bound). */
-function dayStartIso(day: string): string | undefined {
-  return isIsoDay(day) ? new Date(`${day}T00:00:00`).toISOString() : undefined;
-}
-
-/** Start of the day after the picked day, so the picked end day is fully included (exclusive upper bound). */
-function nextDayStartIso(day: string): string | undefined {
-  if (!isIsoDay(day)) return undefined;
-  const date = new Date(`${day}T00:00:00`);
-  date.setDate(date.getDate() + 1);
-  return date.toISOString();
 }
 
 function formatRelative(iso: string, nowMs: number): string {
@@ -943,6 +922,7 @@ function InboxContent() {
             pageSize={pageSize}
             pageSizeOptions={PAGE_SIZES}
             disabled={loading}
+            sizeLabel="Messages per page"
             onPageChange={goToPage}
             onPageSizeChange={(size) => updateParams({ size: size === DEFAULT_PAGE_SIZE ? null : String(size) })}
           />

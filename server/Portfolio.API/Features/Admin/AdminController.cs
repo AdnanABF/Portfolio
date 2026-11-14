@@ -1,3 +1,4 @@
+using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Portfolio.API.Features.Auth;
@@ -37,19 +38,26 @@ public class AdminController : ControllerBase
     }
 
     [HttpGet("activity")]
-    public async Task<ActionResult<List<ActivityLogDto>>> GetActivityLogs([FromQuery] int take = 100, CancellationToken cancellationToken = default)
+    public async Task<ActionResult<ActivityLogPage>> GetActivityLogs(
+        [FromQuery] ActivityLogQuery query,
+        [FromServices] IValidator<ActivityLogQuery> validator,
+        CancellationToken cancellationToken = default)
     {
-        var logs = await _adminService.GetActivityLogsAsync(take, cancellationToken);
-        return Ok(logs);
+        var validation = await validator.ValidateAsync(query, cancellationToken);
+        if (!validation.IsValid) return BadRequest(validation.ToDictionary());
+
+        return Ok(await _adminService.GetActivityLogsAsync(query, cancellationToken));
     }
 
     [HttpGet("system-logs")]
-    public async Task<ActionResult<List<SystemLogDto>>> GetSystemLogs(
-        [FromQuery] int take = 100, 
-        [FromQuery] string? level = null, 
+    public async Task<ActionResult<SystemLogPage>> GetSystemLogs(
+        [FromQuery] SystemLogQuery query,
+        [FromServices] IValidator<SystemLogQuery> validator,
         CancellationToken cancellationToken = default)
     {
-        var logs = await _adminService.GetSystemLogsAsync(take, level, cancellationToken);
-        return Ok(logs);
+        var validation = await validator.ValidateAsync(query, cancellationToken);
+        if (!validation.IsValid) return BadRequest(validation.ToDictionary());
+
+        return Ok(await _adminService.GetSystemLogsAsync(query, cancellationToken));
     }
 }

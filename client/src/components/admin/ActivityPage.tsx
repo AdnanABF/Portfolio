@@ -1,55 +1,47 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense } from "react";
 import Link from "next/link";
-import { ArrowLeft, History, Loader2, RefreshCw, Search } from "lucide-react";
+import { ArrowLeft, CircleAlert, History, ListFilter, Loader2, RefreshCw } from "lucide-react";
+import { LogToolbar } from "@/components/admin/LogToolbar";
+import { Pagination } from "@/components/admin/Pagination";
+import { Dropdown } from "@/components/ui/Dropdown";
+import { PAGE_SIZES, useAdminLogList } from "@/hooks/useAdminLogList";
 import { getAdminActivity } from "@/lib/api-client";
+import type { ActivityLogPage } from "@/lib/types";
 
-interface ActivityLogItem {
-  id: string;
-  userEmail: string;
-  action: string;
-  entityType: string;
-  entityId?: string;
-  summary: string;
-  detailsJson?: string;
-  ipAddress?: string;
-  deviceInfo?: string;
-  timestamp: string;
-}
+const FILTER_KEYS = ["action", "entity"];
 
-export function AdminActivityPage() {
-  const [logs, setLogs] = useState<ActivityLogItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
+function ActivityContent() {
+  const list = useAdminLogList<ActivityLogPage>({
+    filterKeys: FILTER_KEYS,
+    fetchPage: (query) =>
+      getAdminActivity({
+        search: query.search,
+        action: query.action as string | undefined,
+        entityType: query.entity as string | undefined,
+        from: query.from,
+        to: query.to,
+        page: query.page,
+        pageSize: query.pageSize,
+      }),
+  });
 
-  const refreshLogs = async () => {
-    setLoading(true);
-    const data = await getAdminActivity();
-    setLogs(data);
-    setLoading(false);
-  };
+  const { data, loading, failed } = list;
+  const logs = data?.items ?? [];
+  const totalCount = data?.totalCount ?? 0;
 
-  useEffect(() => {
-    let isMounted = true;
-    getAdminActivity().then((data) => {
-      if (isMounted) {
-        setLogs(data);
-        setLoading(false);
-      }
-    });
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  const filteredLogs = logs.filter(
-    (l) =>
-      l.action?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      l.summary?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      l.userEmail?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      l.entityType?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Keep a filter that is not in the list (for example from a bookmark) selectable, so the dropdown shows it.
+  const withCurrent = (values: string[] | undefined, current: string) =>
+    current && !(values ?? []).includes(current) ? [current, ...(values ?? [])] : (values ?? []);
+  const actionOptions = [
+    { value: "", label: "All actions" },
+    ...withCurrent(data?.actions, list.filters.action).map((value) => ({ value, label: value })),
+  ];
+  const entityOptions = [
+    { value: "", label: "All entities" },
+    ...withCurrent(data?.entityTypes, list.filters.entity).map((value) => ({ value, label: value })),
+  ];
 
   return (
     <div className="min-h-screen bg-background pt-28 pb-16 px-4 sm:px-8">
@@ -71,7 +63,7 @@ export function AdminActivityPage() {
             </p>
           </div>
           <button
-            onClick={refreshLogs}
+            onClick={list.refetch}
             disabled={loading}
             className="inline-flex items-center gap-2 rounded-xl border-2 border-line bg-surface px-4 py-2 font-mono text-xs font-bold shadow-[2px_2px_0px_var(--shadow-color)] hover:translate-y-[-1px] transition-all self-start sm:self-auto cursor-pointer"
           >
@@ -80,37 +72,78 @@ export function AdminActivityPage() {
           </button>
         </div>
 
-        {/* Filter / Search Bar */}
-        <div className="mt-6 flex items-center gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
-            <input
-              type="text"
-              placeholder="Filter by action, entity, user, or keyword..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full rounded-xl border-2 border-line bg-surface pl-10 pr-4 py-2 text-xs font-mono placeholder:text-muted focus:outline-none focus:border-primary"
-            />
-          </div>
-          <div className="font-mono text-xs text-muted">
-            {filteredLogs.length} events
-          </div>
-        </div>
+        <LogToolbar
+          searchInput={list.searchInput}
+          onSearchChange={list.setSearchInput}
+          searchPlaceholder="Search action, summary, user or entity..."
+          from={list.from}
+          to={list.to}
+          onDateChange={list.setDate}
+          filtersActive={list.filtersActive}
+          onClear={list.clearFilters}
+        >
+          <Dropdown
+            className="min-w-0 flex-1 @[748px]:flex-none"
+            icon={ListFilter}
+            ariaLabel="Filter by action"
+            value={list.filters.action}
+            options={actionOptions}
+            onChange={(value) => list.setFilter("action", value)}
+          />
+          <Dropdown
+            className="min-w-0 flex-1 @[748px]:flex-none"
+            icon={ListFilter}
+            ariaLabel="Filter by entity"
+            value={list.filters.entity}
+            options={entityOptions}
+            onChange={(value) => list.setFilter("entity", value)}
+          />
+        </LogToolbar>
+
+        {list.dateRangeInvalid && (
+          <p role="alert" className="mt-3 font-mono text-xs text-accent-coral">
+            The start date must not be after the end date.
+          </p>
+        )}
 
         {/* Logs Feed */}
-        <div className="mt-6">
-          {loading ? (
+        <div className="mt-6" aria-busy={loading}>
+          {!data && loading ? (
             <div className="flex items-center justify-center p-12 text-muted font-mono text-xs">
               <Loader2 className="h-5 w-5 animate-spin mr-2 text-primary" />
               Loading activity logs...
             </div>
-          ) : filteredLogs.length === 0 ? (
-            <div className="rounded-2xl border-2 border-line bg-surface p-8 text-center font-mono text-xs text-muted">
-              No matching activity logs found.
+          ) : failed ? (
+            <div
+              role="alert"
+              className="flex flex-col items-center gap-3 rounded-2xl border-2 border-line bg-surface p-8 text-center font-mono text-xs text-muted"
+            >
+              <CircleAlert className="h-5 w-5 text-accent-coral" aria-hidden="true" />
+              Could not load the activity logs.
+              <button
+                type="button"
+                onClick={list.refetch}
+                className="cursor-pointer rounded-lg border-2 border-line bg-surface-2 px-3 py-1.5 font-bold text-foreground hover:bg-surface"
+              >
+                Try again
+              </button>
+            </div>
+          ) : logs.length === 0 && !loading ? (
+            <div className="flex flex-col items-center gap-3 rounded-2xl border-2 border-line bg-surface p-8 text-center font-mono text-xs text-muted">
+              {list.filtersActive ? "No activity logs match these filters." : "No activity logs yet."}
+              {list.filtersActive && (
+                <button
+                  type="button"
+                  onClick={list.clearFilters}
+                  className="cursor-pointer rounded-lg border-2 border-line bg-surface-2 px-3 py-1.5 font-bold text-foreground hover:bg-surface"
+                >
+                  Clear filters
+                </button>
+              )}
             </div>
           ) : (
-            <div className="space-y-3">
-              {filteredLogs.map((log) => {
+            <div className={`space-y-3 transition-opacity ${loading ? "opacity-60" : ""}`}>
+              {logs.map((log) => {
                 const isAuth = log.action.includes("LOGIN") || log.action.includes("SESSION");
                 const isDelete = log.action.includes("DELETE") || log.action.includes("REVOKE");
                 const isUpdate = log.action.includes("UPDATE") || log.action.includes("STATUS");
@@ -157,7 +190,28 @@ export function AdminActivityPage() {
             </div>
           )}
         </div>
+
+        {data && totalCount > 0 && (
+          <Pagination
+            totalItems={totalCount}
+            page={list.page}
+            pageSize={list.pageSize}
+            pageSizeOptions={PAGE_SIZES}
+            disabled={loading}
+            sizeLabel="Events per page"
+            onPageChange={list.setPage}
+            onPageSizeChange={list.setPageSize}
+          />
+        )}
       </div>
     </div>
+  );
+}
+
+export function AdminActivityPage() {
+  return (
+    <Suspense fallback={null}>
+      <ActivityContent />
+    </Suspense>
   );
 }

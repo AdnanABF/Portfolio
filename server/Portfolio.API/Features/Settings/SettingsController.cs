@@ -1,3 +1,4 @@
+using Portfolio.API.Infrastructure.Extensions;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -23,8 +24,11 @@ public class SettingsController : ControllerBase
     [OutputCache(Tags = ["settings"])]
     public async Task<ActionResult<Dictionary<string, string>>> GetAll(CancellationToken cancellationToken)
     {
-        var settings = await _settingsService.GetAllSettingsAsync(cancellationToken);
-        return Ok(settings);
+        return await this.UnlessClientHungUp<Dictionary<string, string>>(async () =>
+        {
+            var settings = await _settingsService.GetAllSettingsAsync(cancellationToken);
+            return Ok(settings);
+        }, cancellationToken);
     }
 
     [AllowAnonymous]
@@ -32,8 +36,11 @@ public class SettingsController : ControllerBase
     [OutputCache(Tags = ["settings"])]
     public async Task<ActionResult<string>> GetByKey(string key, CancellationToken cancellationToken)
     {
-        var value = await _settingsService.GetSettingAsync(key, cancellationToken);
-        return Ok(value);
+        return await this.UnlessClientHungUp<string>(async () =>
+        {
+            var value = await _settingsService.GetSettingAsync(key, cancellationToken);
+            return Ok(value);
+        }, cancellationToken);
     }
 
     [HttpPut("{key}")]

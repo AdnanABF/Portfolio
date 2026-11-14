@@ -25,8 +25,11 @@ public class BlogController : ControllerBase
     public async Task<ActionResult<List<BlogPostDto>>> GetAll([FromQuery] bool includeDrafts = false, CancellationToken cancellationToken = default)
     {
         // Drafts are only ever returned to admins, whatever the query string says.
-        var posts = await _blogService.GetAllPostsAsync(includeDrafts && User.IsAdmin(), cancellationToken);
-        return Ok(posts);
+        return await this.UnlessClientHungUp<List<BlogPostDto>>(async () =>
+        {
+            var posts = await _blogService.GetAllPostsAsync(includeDrafts && User.IsAdmin(), cancellationToken);
+            return Ok(posts);
+        }, cancellationToken);
     }
 
     [AllowAnonymous]
@@ -34,9 +37,12 @@ public class BlogController : ControllerBase
     [OutputCache(PolicyName = "blog")]
     public async Task<ActionResult<BlogPostDto>> GetBySlug(string slug, CancellationToken cancellationToken)
     {
-        var post = await _blogService.GetPostBySlugAsync(slug, User.IsAdmin(), cancellationToken);
-        if (post == null) return NotFound();
-        return Ok(post);
+        return await this.UnlessClientHungUp<BlogPostDto>(async () =>
+        {
+            var post = await _blogService.GetPostBySlugAsync(slug, User.IsAdmin(), cancellationToken);
+            if (post == null) return NotFound();
+            return Ok(post);
+        }, cancellationToken);
     }
 
     [HttpPost]
