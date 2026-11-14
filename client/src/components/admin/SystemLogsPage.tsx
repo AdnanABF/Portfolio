@@ -1,63 +1,70 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
   ArrowLeft,
   ChevronDown,
   ChevronRight,
+  CircleAlert,
   Info,
+  ListFilter,
   Loader2,
   RefreshCw,
   Terminal,
   XCircle,
 } from "lucide-react";
+import { LogToolbar } from "@/components/admin/LogToolbar";
+import { Pagination } from "@/components/admin/Pagination";
+import { Dropdown } from "@/components/ui/Dropdown";
+import { PAGE_SIZES, useAdminLogList } from "@/hooks/useAdminLogList";
 import { getAdminSystemLogs } from "@/lib/api-client";
+import type { SystemLogPage } from "@/lib/types";
 
-interface SystemLogItem {
-  id: string;
-  level: string;
-  message: string;
-  exception?: string;
-  stackTrace?: string;
-  path?: string;
-  httpMethod?: string;
-  statusCode?: number;
-  ipAddress?: string;
-  timestamp: string;
-}
+const FILTER_KEYS = ["level"];
+const LEVELS = ["Error", "Warning", "Information"];
 
-export function AdminSystemLogsPage() {
-  const [logs, setLogs] = useState<SystemLogItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filterLevel, setFilterLevel] = useState<string>("all");
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-
-  const refreshLogs = async () => {
-    setLoading(true);
-    const data = await getAdminSystemLogs();
-    setLogs(data);
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    let isMounted = true;
-    getAdminSystemLogs().then((data) => {
-      if (isMounted) {
-        setLogs(data);
-        setLoading(false);
-      }
-    });
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  const filteredLogs = logs.filter((l) => {
-    if (filterLevel === "all") return true;
-    return l.level?.toLowerCase() === filterLevel.toLowerCase();
+function SystemLogsContent() {
+  const list = useAdminLogList<SystemLogPage>({
+    filterKeys: FILTER_KEYS,
+    isValidFilter: (_key, value) => LEVELS.includes(value),
+    fetchPage: (query) =>
+      getAdminSystemLogs({
+        search: query.search,
+        level: query.level as string | undefined,
+        from: query.from,
+        to: query.to,
+        page: query.page,
+        pageSize: query.pageSize,
+      }),
   });
+
+  // The expanded row is reset whenever the filters or the page change.
+  const [expanded, setExpanded] = useState<{ key: string; id: string | null }>({ key: list.queryKey, id: null });
+  const expandedId = expanded.key === list.queryKey ? expanded.id : null;
+  const setExpandedId = (id: string | null) => setExpanded({ key: list.queryKey, id });
+
+  const { data, loading, failed } = list;
+  const logs = data?.items ?? [];
+  const totalCount = data?.totalCount ?? 0;
+  const level = list.filters.level;
+
+  // Counts cover all logs, not just the current search.
+  const withCount = (label: string, count: number | undefined) =>
+    count === undefined ? label : `${label} (${count})`;
+  const levelOptions = [
+    {
+      value: "",
+      label: withCount(
+        "All levels",
+        data ? (data.errorCount ?? 0) + (data.warningCount ?? 0) + (data.informationCount ?? 0) : undefined,
+      ),
+    },
+    { value: "Error", label: withCount("Error", data?.errorCount) },
+    { value: "Warning", label: withCount("Warning", data?.warningCount) },
+    { value: "Information", label: withCount("Information", data?.informationCount) },
+  ];
 
   return (
     <div className="min-h-screen bg-background pt-28 pb-16 px-4 sm:px-8">
@@ -79,7 +86,7 @@ export function AdminSystemLogsPage() {
             </p>
           </div>
           <button
-            onClick={refreshLogs}
+            onClick={list.refetch}
             disabled={loading}
             className="inline-flex items-center gap-2 rounded-xl border-2 border-line bg-surface px-4 py-2 font-mono text-xs font-bold shadow-[2px_2px_0px_var(--shadow-color)] hover:translate-y-[-1px] transition-all self-start sm:self-auto cursor-pointer"
           >
@@ -88,40 +95,70 @@ export function AdminSystemLogsPage() {
           </button>
         </div>
 
-        {/* Level Filters */}
-        <div className="mt-6 flex flex-wrap items-center gap-2">
-          {["all", "Error", "Warning", "Information"].map((level) => (
-            <button
-              key={level}
-              onClick={() => setFilterLevel(level)}
-              className={`rounded-lg border-2 border-line px-3 py-1 font-mono text-xs font-bold transition-all cursor-pointer ${
-                filterLevel === level
-                  ? "bg-primary text-black shadow-[2px_2px_0px_var(--shadow-color)]"
-                  : "bg-surface text-muted hover:text-foreground"
-              }`}
-            >
-              {level.toUpperCase()}
-            </button>
-          ))}
-          <div className="ml-auto font-mono text-xs text-muted">
-            {filteredLogs.length} entries
-          </div>
-        </div>
+        <LogToolbar
+          searchInput={list.searchInput}
+          onSearchChange={list.setSearchInput}
+          searchPlaceholder="Search message, path or exception..."
+          from={list.from}
+          to={list.to}
+          onDateChange={list.setDate}
+          filtersActive={list.filtersActive}
+          onClear={list.clearFilters}
+        >
+          <Dropdown
+            className="min-w-0 flex-1 @[748px]:flex-none"
+            icon={ListFilter}
+            ariaLabel="Filter by level"
+            value={level}
+            options={levelOptions}
+            onChange={(value) => list.setFilter("level", value)}
+          />
+        </LogToolbar>
+
+        {list.dateRangeInvalid && (
+          <p role="alert" className="mt-3 font-mono text-xs text-accent-coral">
+            The start date must not be after the end date.
+          </p>
+        )}
 
         {/* Logs List */}
-        <div className="mt-6">
-          {loading ? (
+        <div className="mt-6" aria-busy={loading}>
+          {!data && loading ? (
             <div className="flex items-center justify-center p-12 text-muted font-mono text-xs">
               <Loader2 className="h-5 w-5 animate-spin mr-2 text-primary" />
               Loading system logs...
             </div>
-          ) : filteredLogs.length === 0 ? (
-            <div className="rounded-2xl border-2 border-line bg-surface p-8 text-center font-mono text-xs text-muted">
-              No system logs found for this filter.
+          ) : failed ? (
+            <div
+              role="alert"
+              className="flex flex-col items-center gap-3 rounded-2xl border-2 border-line bg-surface p-8 text-center font-mono text-xs text-muted"
+            >
+              <CircleAlert className="h-5 w-5 text-accent-coral" aria-hidden="true" />
+              Could not load the system logs.
+              <button
+                type="button"
+                onClick={list.refetch}
+                className="cursor-pointer rounded-lg border-2 border-line bg-surface-2 px-3 py-1.5 font-bold text-foreground hover:bg-surface"
+              >
+                Try again
+              </button>
+            </div>
+          ) : logs.length === 0 && !loading ? (
+            <div className="flex flex-col items-center gap-3 rounded-2xl border-2 border-line bg-surface p-8 text-center font-mono text-xs text-muted">
+              {list.filtersActive ? "No system logs match these filters." : "No system logs yet."}
+              {list.filtersActive && (
+                <button
+                  type="button"
+                  onClick={list.clearFilters}
+                  className="cursor-pointer rounded-lg border-2 border-line bg-surface-2 px-3 py-1.5 font-bold text-foreground hover:bg-surface"
+                >
+                  Clear filters
+                </button>
+              )}
             </div>
           ) : (
-            <div className="space-y-3">
-              {filteredLogs.map((log) => {
+            <div className={`space-y-3 transition-opacity ${loading ? "opacity-60" : ""}`}>
+              {logs.map((log) => {
                 const isError = log.level?.toLowerCase() === "error" || (log.statusCode && log.statusCode >= 500);
                 const isWarn = log.level?.toLowerCase() === "warning" || (log.statusCode && log.statusCode >= 400 && log.statusCode < 500);
                 const isExpanded = expandedId === log.id;
@@ -186,7 +223,7 @@ export function AdminSystemLogsPage() {
 
                       <div className="flex items-center gap-2 sm:self-center shrink-0">
                         <span className="font-mono text-[10px] text-muted">
-                          {new Date(log.timestamp).toLocaleTimeString()}
+                          {new Date(log.timestamp).toLocaleString()}
                         </span>
                         {log.stackTrace && (
                           <button
@@ -221,7 +258,28 @@ export function AdminSystemLogsPage() {
             </div>
           )}
         </div>
+
+        {data && totalCount > 0 && (
+          <Pagination
+            totalItems={totalCount}
+            page={list.page}
+            pageSize={list.pageSize}
+            pageSizeOptions={PAGE_SIZES}
+            disabled={loading}
+            sizeLabel="Entries per page"
+            onPageChange={list.setPage}
+            onPageSizeChange={list.setPageSize}
+          />
+        )}
       </div>
     </div>
+  );
+}
+
+export function AdminSystemLogsPage() {
+  return (
+    <Suspense fallback={null}>
+      <SystemLogsContent />
+    </Suspense>
   );
 }

@@ -83,3 +83,70 @@ export interface InquiryQuery {
   page?: number;
   pageSize?: number;
 }
+
+// ---- Admin activity and system logs ---------------------------------------------------------
+
+export interface ActivityLogItem {
+  id: string;
+  userEmail: string;
+  action: string;
+  entityType: string;
+  entityId?: string;
+  summary: string;
+  detailsJson?: string;
+  ipAddress?: string;
+  deviceInfo?: string;
+  timestamp: string;
+}
+
+export interface ActivityLogPage {
+  items: ActivityLogItem[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  /** Every action / entity type in the log (ignores filters), for the filter dropdowns. */
+  actions: string[];
+  entityTypes: string[];
+}
+
+export interface SystemLogItem {
+  id: string;
+  level: string;
+  message: string;
+  exception?: string;
+  stackTrace?: string;
+  path?: string;
+  httpMethod?: string;
+  statusCode?: number;
+  ipAddress?: string;
+  timestamp: string;
+}
+
+export interface SystemLogPage {
+  items: SystemLogItem[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  /** Totals per level across all logs (ignore filters). */
+  errorCount: number;
+  warningCount: number;
+  informationCount: number;
+}
+
+export interface LogQuery {
+  search?: string;
+  /** ISO instants: from is inclusive, to is exclusive. */
+  from?: string;
+  to?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface ActivityLogQuery extends LogQuery {
+  action?: string;
+  entityType?: string;
+}
+
+export interface SystemLogQuery extends LogQuery {
+  level?: string;
+}
