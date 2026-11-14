@@ -35,8 +35,11 @@ public class ProjectsController : ControllerBase
     public async Task<ActionResult<List<ProjectDto>>> GetAll([FromQuery] bool includeDrafts = false, CancellationToken cancellationToken = default)
     {
         // Drafts are only ever returned to admins, whatever the query string says.
-        var projects = await _projectService.GetAllProjectsAsync(includeDrafts && User.IsAdmin(), cancellationToken);
-        return Ok(projects);
+        return await this.UnlessClientHungUp<List<ProjectDto>>(async () =>
+        {
+            var projects = await _projectService.GetAllProjectsAsync(includeDrafts && User.IsAdmin(), cancellationToken);
+            return Ok(projects);
+        }, cancellationToken);
     }
 
     [AllowAnonymous]
@@ -44,9 +47,12 @@ public class ProjectsController : ControllerBase
     [OutputCache(PolicyName = "projects")]
     public async Task<ActionResult<ProjectDto>> GetBySlug(string slug, CancellationToken cancellationToken = default)
     {
-        var project = await _projectService.GetProjectBySlugAsync(slug, User.IsAdmin(), cancellationToken);
-        if (project == null) return NotFound();
-        return Ok(project);
+        return await this.UnlessClientHungUp<ProjectDto>(async () =>
+        {
+            var project = await _projectService.GetProjectBySlugAsync(slug, User.IsAdmin(), cancellationToken);
+            if (project == null) return NotFound();
+            return Ok(project);
+        }, cancellationToken);
     }
 
     /// <summary>

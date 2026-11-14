@@ -1,3 +1,4 @@
+using Portfolio.API.Infrastructure.Extensions;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -23,8 +24,11 @@ public class SkillsController : ControllerBase
     [OutputCache(Tags = ["skills"])]
     public async Task<ActionResult<List<SkillDto>>> GetAll(CancellationToken cancellationToken)
     {
-        var items = await _skillsService.GetAllSkillsAsync(cancellationToken);
-        return Ok(items);
+        return await this.UnlessClientHungUp<List<SkillDto>>(async () =>
+        {
+            var items = await _skillsService.GetAllSkillsAsync(cancellationToken);
+            return Ok(items);
+        }, cancellationToken);
     }
 
     [HttpPost]
