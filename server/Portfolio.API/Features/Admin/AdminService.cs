@@ -29,6 +29,12 @@ public class AdminService : IAdminService
             logs = logs.Where(a => a.EntityType == entityType);
         }
 
+        if (query.UserId.HasValue)
+        {
+            var userId = query.UserId.Value;
+            logs = logs.Where(a => a.UserId == userId);
+        }
+
         if (query.From.HasValue)
         {
             var from = query.From.Value.UtcDateTime;
@@ -46,10 +52,10 @@ public class AdminService : IAdminService
         {
             var pattern = $"%{LikeEscaper.Escape(search)}%";
             logs = logs.Where(a =>
-                EF.Functions.ILike(a.Action, pattern) ||
-                EF.Functions.ILike(a.Summary, pattern) ||
-                EF.Functions.ILike(a.UserEmail, pattern) ||
-                EF.Functions.ILike(a.EntityType, pattern));
+                EF.Functions.ILike(a.Action, pattern, LikeEscaper.EscapeCharacter) ||
+                EF.Functions.ILike(a.Summary, pattern, LikeEscaper.EscapeCharacter) ||
+                EF.Functions.ILike(a.UserEmail, pattern, LikeEscaper.EscapeCharacter) ||
+                EF.Functions.ILike(a.EntityType, pattern, LikeEscaper.EscapeCharacter));
         }
 
         var totalCount = await logs.CountAsync(cancellationToken);
@@ -120,9 +126,9 @@ public class AdminService : IAdminService
             var pattern = $"%{LikeEscaper.Escape(search)}%";
             // A leading % cannot use an index, so searching the exception text scans the table. Fine at this size.
             logs = logs.Where(s =>
-                EF.Functions.ILike(s.Message, pattern) ||
-                (s.Path != null && EF.Functions.ILike(s.Path, pattern)) ||
-                (s.Exception != null && EF.Functions.ILike(s.Exception, pattern)));
+                EF.Functions.ILike(s.Message, pattern, LikeEscaper.EscapeCharacter) ||
+                (s.Path != null && EF.Functions.ILike(s.Path, pattern, LikeEscaper.EscapeCharacter)) ||
+                (s.Exception != null && EF.Functions.ILike(s.Exception, pattern, LikeEscaper.EscapeCharacter)));
         }
 
         var totalCount = await logs.CountAsync(cancellationToken);

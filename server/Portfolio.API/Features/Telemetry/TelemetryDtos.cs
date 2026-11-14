@@ -18,6 +18,10 @@ public class AnalyticsSummaryDto
     public int TotalInquiries { get; set; }
     public int UnreadInquiries { get; set; }
     public int ActiveSessionsCount { get; set; }
+    /// <summary>Everyone who is not soft-deleted.</summary>
+    public int TotalUsers { get; set; }
+    /// <summary>Users who signed in during the last 30 days (not deleted).</summary>
+    public int UsersLoggedInLast30Days { get; set; }
     public List<TopProjectDto> TopProjects { get; set; } = new();
     public List<ReferrerCountDto> TopReferrers { get; set; } = new();
     public List<CountryCountDto> TopCountries { get; set; } = new();

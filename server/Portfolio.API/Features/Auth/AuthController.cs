@@ -41,13 +41,16 @@ public class AuthController : ControllerBase
             return BadRequest(validation.ToDictionary());
         }
 
-        var response = await _authService.LoginAsync(request, HttpContext, cancellationToken);
-        if (response == null)
+        var outcome = await _authService.LoginAsync(request, HttpContext, cancellationToken);
+        return outcome.FailureCode switch
         {
-            return Unauthorized(new { message = "Invalid email or password." });
-        }
-
-        return Ok(response);
+            null => Ok(outcome.Response),
+            LoginOutcome.AccountDisabled => StatusCode(StatusCodes.Status403Forbidden,
+                new { code = outcome.FailureCode, message = "This account is not active. Contact the site owner." }),
+            LoginOutcome.EmailNotVerified => StatusCode(StatusCodes.Status403Forbidden,
+                new { code = outcome.FailureCode, message = "Please verify your email address first. Check your inbox for the link." }),
+            _ => Unauthorized(new { message = "Invalid email or password." })
+        };
     }
 
     [Authorize]

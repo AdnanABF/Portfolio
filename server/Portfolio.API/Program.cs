@@ -22,6 +22,7 @@ using Portfolio.API.Features.Projects;
 using Portfolio.API.Features.Settings;
 using Portfolio.API.Features.Skills;
 using Portfolio.API.Features.Telemetry;
+using Portfolio.API.Features.Users;
 using Portfolio.API.Infrastructure.Caching;
 using Portfolio.API.Infrastructure.Email;
 using Portfolio.API.Infrastructure.ExceptionHandling;
@@ -99,6 +100,10 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
 .AddEntityFrameworkStores<AppDbContext>()
 .AddDefaultTokenProviders();
 
+// Invite, verification and password-reset links stay valid for three days.
+builder.Services.Configure<DataProtectionTokenProviderOptions>(options =>
+    options.TokenLifespan = TimeSpan.FromDays(3));
+
 // 6. Identity Application Cookie
 builder.Services.ConfigureApplicationCookie(options =>
 {
@@ -164,11 +169,18 @@ builder.Services.ConfigureApplicationCookie(options =>
 // 7. Authorization (AdminOnly Policy & Fallback)
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("AdminOnly", policy => policy.RequireRole("SuperAdmin", "Admin"));
+    options.AddPolicy("AdminOnly", policy => policy.RequireRole(UserRoles.SuperAdmin, UserRoles.Admin));
+    // Only the owner account manages members.
+    options.AddPolicy("SuperAdminOnly", policy => policy.RequireRole(UserRoles.SuperAdmin));
     options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireRole("SuperAdmin", "Admin").Build();
 });
 
 // 8. Built-in Rate Limiting
+// The sign-in and account limits can be raised in configuration (read per request, so test hosts can override
+// them) so integration tests can sign in many times from one address. Production keeps the defaults.
+static int PermitLimit(HttpContext httpContext, string key, int fallback) =>
+    httpContext.RequestServices.GetRequiredService<IConfiguration>().GetValue(key, fallback);
+
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -178,7 +190,30 @@ builder.Services.AddRateLimiter(options =>
             partitionKey: httpContext.GetClientIpAddress(),
             factory: _ => new FixedWindowRateLimiterOptions
             {
-                PermitLimit = 5,
+                PermitLimit = PermitLimit(httpContext, "RateLimiting:AuthPermitLimit", 5),
+                Window = TimeSpan.FromMinutes(15),
+                QueueLimit = 0
+            }));
+
+    // Public account endpoints (sign-up, verification, password reset): stricter than login would be too noisy.
+    options.AddPolicy("account-rate-limit", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.GetClientIpAddress(),
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = PermitLimit(httpContext, "RateLimiting:AccountPermitLimit", 10),
+                Window = TimeSpan.FromMinutes(15),
+                QueueLimit = 0
+            }));
+
+    // Endpoints that act on an emailed token or a password: more room than the "send me an email" ones above,
+    // so a busy shared address does not lock people out of finishing a reset they already have the link for.
+    options.AddPolicy("account-token-rate-limit", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.GetClientIpAddress(),
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = PermitLimit(httpContext, "RateLimiting:AccountTokenPermitLimit", 30),
                 Window = TimeSpan.FromMinutes(15),
                 QueueLimit = 0
             }));
@@ -252,6 +287,16 @@ builder.Services.AddOutputCache(options =>
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 // 12b. Email sending (Resend). Outside Development the Resend settings are required.
+// Invite, verification and reset links are built from this address. Outside Development a missing value would
+// make every link point at localhost, so the app refuses to start without it.
+if (!builder.Environment.IsDevelopment() && string.IsNullOrWhiteSpace(builder.Configuration["App:PublicBaseUrl"]))
+{
+    throw new InvalidOperationException(
+        "App:PublicBaseUrl is missing. Set it to the public address of the website, for example https://yourdomain.com " +
+        "(environment variable App__PublicBaseUrl).");
+}
+
+builder.Services.AddMemoryCache();
 builder.Services.AddEmailSending(builder.Configuration, builder.Environment);
 
 // 13. Application & Feature Services
@@ -264,6 +309,8 @@ builder.Services.AddScoped<ISkillsService, SkillsService>();
 builder.Services.AddScoped<IBlogService, BlogService>();
 builder.Services.AddScoped<ISettingsService, SettingsService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IAccountService, AccountService>();
+builder.Services.AddScoped<IUserAdminService, UserAdminService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IContactService, ContactService>();
 builder.Services.AddScoped<ITelemetryService, TelemetryService>();

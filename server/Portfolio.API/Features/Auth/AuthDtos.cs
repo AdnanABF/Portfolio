@@ -6,6 +6,17 @@ public class LoginRequest
     public string Password { get; set; } = string.Empty;
 }
 
+/// <summary>
+/// Result of a login attempt. A wrong password, an unknown account and a locked-out account all look the same
+/// (invalid credentials). The other codes are only returned after the password was correct.
+/// </summary>
+public record LoginOutcome(LoginResponse? Response, string? FailureCode)
+{
+    public const string InvalidCredentials = "invalid_credentials";
+    public const string AccountDisabled = "account_disabled";
+    public const string EmailNotVerified = "email_not_verified";
+}
+
 public class LoginResponse
 {
     public string Token { get; set; } = string.Empty;

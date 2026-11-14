@@ -27,6 +27,8 @@ public class ActivityLogQuery
     public DateTimeOffset? From { get; set; }
     /// <summary>Exclusive upper bound on the log time.</summary>
     public DateTimeOffset? To { get; set; }
+    /// <summary>Only entries written by this user (the member history tab).</summary>
+    public Guid? UserId { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 10;
 }

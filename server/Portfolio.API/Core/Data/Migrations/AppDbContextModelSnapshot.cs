@@ -247,6 +247,9 @@ namespace Portfolio.API.Core.Data.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Email")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
@@ -259,8 +262,19 @@ namespace Portfolio.API.Core.Data.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
                     b.Property<DateTime?>("LastLoginAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastLoginIp")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("LastLoginMethod")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
 
                     b.Property<bool>("LockoutEnabled")
                         .HasColumnType("boolean");
@@ -301,6 +315,8 @@ namespace Portfolio.API.Core.Data.Migrations
                         .HasColumnType("character varying(256)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("LastLoginAt");
 
                     b.HasIndex("NormalizedEmail")
                         .HasDatabaseName("EmailIndex");
