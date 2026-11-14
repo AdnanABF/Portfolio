@@ -16,22 +16,17 @@ import { useAdmin } from "@/components/admin/AdminContext";
  * (a client component cannot).
  */
 export function AdminGuard({ children }: { children: ReactNode }) {
-  const { isAdmin, isLoading } = useAdmin();
+  const { account, isAdmin, isLoading } = useAdmin();
   const pathname = usePathname();
   const router = useRouter();
 
-  const isLoginPage = pathname === "/admin/login";
-  const mustSignIn = !isLoginPage && !isLoading && !isAdmin;
+  const mustLeave = !isLoading && !isAdmin;
 
   useEffect(() => {
-    if (mustSignIn) {
-      router.replace(`/admin/login?from=${encodeURIComponent(pathname)}`);
-    }
-  }, [mustSignIn, pathname, router]);
-
-  if (isLoginPage) {
-    return <>{children}</>;
-  }
+    if (!mustLeave) return;
+    // Signed in but not an admin: the sign-in page cannot help, so go to their own account page.
+    router.replace(account ? "/account" : `/login?from=${encodeURIComponent(pathname)}`);
+  }, [mustLeave, account, pathname, router]);
 
   if (isLoading || !isAdmin) {
     return (

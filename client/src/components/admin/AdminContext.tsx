@@ -23,7 +23,12 @@ interface DrawerState {
 
 interface AdminContextType {
   isAdmin: boolean;
+  /** Only the owner account manages members. */
+  isSuperAdmin: boolean;
+  /** The admin who is signed in, or null (also null for a signed-in member who is not an admin). */
   user: AdminUser | null;
+  /** Whoever is signed in, admin or member, or null. */
+  account: AdminUser | null;
   isLoading: boolean;
   isEditMode: boolean;
   refreshAuth: () => Promise<void>;
@@ -38,7 +43,9 @@ interface AdminContextType {
 
 const AdminContext = createContext<AdminContextType>({
   isAdmin: false,
+  isSuperAdmin: false,
   user: null,
+  account: null,
   isLoading: true,
   isEditMode: false,
   refreshAuth: async () => {},
@@ -49,6 +56,7 @@ const AdminContext = createContext<AdminContextType>({
 
 export function AdminProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AdminUser | null>(null);
+  const [account, setAccount] = useState<AdminUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditMode, setIsEditMode] = useState(false);
   const [drawer, setDrawer] = useState<DrawerState>({
@@ -57,33 +65,29 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     initialData: null,
   });
 
+  /** Stores who is signed in: everyone as the account, and admins also as the admin user. */
+  const applyMe = useCallback((data: AdminUser | null) => {
+    setAccount(data);
+    setUser(data && (data.isAdmin || data.role === "Admin" || data.role === "SuperAdmin") ? data : null);
+  }, []);
+
   const refreshAuth = useCallback(async () => {
     try {
-      const data = await getMe();
-      if (data && (data.isAdmin || data.role === "Admin" || data.role === "SuperAdmin")) {
-        setUser(data);
-      } else {
-        setUser(null);
-      }
+      applyMe(await getMe());
     } catch {
-      setUser(null);
+      applyMe(null);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [applyMe]);
   useEffect(() => {
     let isMounted = true;
     getMe()
       .then((data) => {
-        if (!isMounted) return;
-        if (data && (data.isAdmin || data.role === "Admin" || data.role === "SuperAdmin")) {
-          setUser(data);
-        } else {
-          setUser(null);
-        }
+        if (isMounted) applyMe(data);
       })
       .catch(() => {
-        if (isMounted) setUser(null);
+        if (isMounted) applyMe(null);
       })
       .finally(() => {
         if (isMounted) setIsLoading(false);
@@ -92,9 +96,10 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [applyMe]);
 
   const isAdmin = !!user && (user.isAdmin || user.role === "Admin" || user.role === "SuperAdmin");
+  const isSuperAdmin = !!user && (user.roles?.includes("SuperAdmin") || user.role === "SuperAdmin");
 
   const toggleEditMode = () => {
     setIsEditMode((prev) => !prev);
@@ -123,7 +128,9 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     <AdminContext.Provider
       value={{
         isAdmin,
+        isSuperAdmin,
         user,
+        account,
         isLoading,
         isEditMode,
         refreshAuth,

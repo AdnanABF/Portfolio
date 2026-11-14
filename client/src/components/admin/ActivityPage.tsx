@@ -3,17 +3,17 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { ArrowLeft, CircleAlert, History, ListFilter, Loader2, RefreshCw } from "lucide-react";
-import { LogToolbar } from "@/components/admin/LogToolbar";
+import { ListToolbar } from "@/components/admin/ListToolbar";
 import { Pagination } from "@/components/admin/Pagination";
 import { Dropdown } from "@/components/ui/Dropdown";
-import { PAGE_SIZES, useAdminLogList } from "@/hooks/useAdminLogList";
+import { PAGE_SIZES, useAdminList } from "@/hooks/useAdminList";
 import { getAdminActivity } from "@/lib/api-client";
 import type { ActivityLogPage } from "@/lib/types";
 
 const FILTER_KEYS = ["action", "entity"];
 
 function ActivityContent() {
-  const list = useAdminLogList<ActivityLogPage>({
+  const list = useAdminList<ActivityLogPage>({
     filterKeys: FILTER_KEYS,
     fetchPage: (query) =>
       getAdminActivity({
@@ -72,7 +72,7 @@ function ActivityContent() {
           </button>
         </div>
 
-        <LogToolbar
+        <ListToolbar
           searchInput={list.searchInput}
           onSearchChange={list.setSearchInput}
           searchPlaceholder="Search action, summary, user or entity..."
@@ -98,7 +98,7 @@ function ActivityContent() {
             options={entityOptions}
             onChange={(value) => list.setFilter("entity", value)}
           />
-        </LogToolbar>
+        </ListToolbar>
 
         {list.dateRangeInvalid && (
           <p role="alert" className="mt-3 font-mono text-xs text-accent-coral">

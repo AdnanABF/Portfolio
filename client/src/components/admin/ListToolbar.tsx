@@ -3,13 +3,15 @@
 import type { ReactNode } from "react";
 import { Calendar, FilterX, Search } from "lucide-react";
 
-interface LogToolbarProps {
+interface ListToolbarProps {
   searchInput: string;
   onSearchChange: (value: string) => void;
   searchPlaceholder: string;
-  from: string;
-  to: string;
-  onDateChange: (key: "from" | "to", value: string) => void;
+  from?: string;
+  to?: string;
+  showDates?: boolean;
+  /** Date range inputs. Lists without one (members) leave these out and set showDates to false. */
+  onDateChange?: (key: "from" | "to", value: string) => void;
   filtersActive: boolean;
   onClear: () => void;
   /** Dropdown filters shown next to the date range. */
@@ -19,18 +21,19 @@ interface LogToolbarProps {
 const dateInput =
   "w-full min-w-0 cursor-pointer bg-transparent font-semibold text-foreground outline-none [color-scheme:light] dark:[color-scheme:dark] @[748px]:w-auto";
 
-/** Search box, date range, filter slot and "clear filters" button shared by the admin log pages. */
-export function LogToolbar({
+/** Search box, optional date range, filter slot and "clear filters" button shared by the admin lists. */
+export function ListToolbar({
   searchInput,
   onSearchChange,
   searchPlaceholder,
-  from,
-  to,
+  from = "",
+  to = "",
+  showDates = true,
   onDateChange,
   filtersActive,
   onClear,
   children,
-}: LogToolbarProps) {
+}: ListToolbarProps) {
   return (
     <div className="@container mt-6">
       <div className="flex flex-col gap-2">
@@ -51,32 +54,34 @@ export function LogToolbar({
         </div>
 
         <div className="flex flex-col gap-2 @[748px]:flex-row @[748px]:items-center">
-          <div className="neo-input flex h-10 w-full items-center gap-x-2 px-2.5 text-xs sm:gap-x-3 sm:px-3 @[748px]:w-auto">
-            <Calendar className="h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
-            <label className="flex min-w-0 flex-1 items-center gap-1 sm:gap-1.5 @[748px]:flex-none">
-              <span className="font-mono text-muted">From:</span>
-              <input
-                type="date"
-                value={from}
-                max={to || undefined}
-                onChange={(e) => onDateChange("from", e.target.value)}
-                aria-label="From date"
-                className={dateInput}
-              />
-            </label>
-            <span className="hidden h-4 w-px bg-line sm:block" aria-hidden="true" />
-            <label className="flex min-w-0 flex-1 items-center gap-1 sm:gap-1.5 @[748px]:flex-none">
-              <span className="font-mono text-muted">To:</span>
-              <input
-                type="date"
-                value={to}
-                min={from || undefined}
-                onChange={(e) => onDateChange("to", e.target.value)}
-                aria-label="To date"
-                className={dateInput}
-              />
-            </label>
-          </div>
+          {showDates && (
+            <div className="neo-input flex h-10 w-full items-center gap-x-2 px-2.5 text-xs sm:gap-x-3 sm:px-3 @[748px]:w-auto">
+              <Calendar className="h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
+              <label className="flex min-w-0 flex-1 items-center gap-1 sm:gap-1.5 @[748px]:flex-none">
+                <span className="font-mono text-muted">From:</span>
+                <input
+                  type="date"
+                  value={from}
+                  max={to || undefined}
+                  onChange={(e) => onDateChange?.("from", e.target.value)}
+                  aria-label="From date"
+                  className={dateInput}
+                />
+              </label>
+              <span className="hidden h-4 w-px bg-line sm:block" aria-hidden="true" />
+              <label className="flex min-w-0 flex-1 items-center gap-1 sm:gap-1.5 @[748px]:flex-none">
+                <span className="font-mono text-muted">To:</span>
+                <input
+                  type="date"
+                  value={to}
+                  min={from || undefined}
+                  onChange={(e) => onDateChange?.("to", e.target.value)}
+                  aria-label="To date"
+                  className={dateInput}
+                />
+              </label>
+            </div>
+          )}
 
           <div className="flex w-full items-center gap-2 @[748px]:w-auto">
             {children}

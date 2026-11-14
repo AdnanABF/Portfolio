@@ -15,9 +15,11 @@ interface LoadResult<TPage> {
   page: TPage | null;
   /** "auth": the session is missing or expired (HTTP 401). "failed": any other problem. */
   error: "auth" | "failed" | null;
+  /** When this result arrived, for "5m ago" style times that should not change on every render. */
+  loadedAt: number;
 }
 
-/** What the hook needs to know about a loaded page; the log pages all have these. */
+/** What the hook needs to know about a loaded page; every paged admin list has these. */
 interface PagedResult {
   items: unknown[];
   totalCount: number;
@@ -33,13 +35,14 @@ interface Options<TPage> {
 }
 
 /**
- * State for a server-paged admin list: search, filters, date range, page and size live in the URL (so refresh,
- * Back and bookmarks keep them), typing in the search box is debounced, and the current page is loaded with
- * request cancellation. An expired session redirects to the login page.
+ * State for a server-paged admin list (logs, members): search, filters, an optional date range, page and size live
+ * in the URL (so refresh, Back and bookmarks keep them), typing in the search box is debounced, and the current
+ * page is loaded with request cancellation. An expired session redirects to the login page. A list without a date
+ * range simply never sets "from" or "to".
  *
  * Must be used below a Suspense boundary because it reads the search params.
  */
-export function useAdminLogList<TPage extends PagedResult>({ filterKeys = [], isValidFilter, fetchPage }: Options<TPage>) {
+export function useAdminList<TPage extends PagedResult>({ filterKeys = [], isValidFilter, fetchPage }: Options<TPage>) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -55,16 +58,17 @@ export function useAdminLogList<TPage extends PagedResult>({ filterKeys = [], is
   const pageSize = PAGE_SIZES.includes(sizeParam) ? sizeParam : DEFAULT_PAGE_SIZE;
 
   // Only the filter values that are acceptable (known keys, valid values) are used; anything else means "all".
-  const searchParamsText = searchParams.toString();
-  const filters = useMemo(() => {
-    const params = new URLSearchParams(searchParamsText);
-    const values: Record<string, string> = {};
-    for (const key of filterKeys) {
-      const raw = params.get(key) ?? "";
-      values[key] = raw && (!isValidFilter || isValidFilter(key, raw)) ? raw : "";
-    }
-    return values;
-  }, [searchParamsText, filterKeys, isValidFilter]);
+  //
+  // Callers often write filterKeys and isValidFilter inline, so their identity changes on every render. They must
+  // never be dependencies of a memo or an effect here: that would rebuild the query on every render, re-run the
+  // fetch effect, and request the list again and again without end. Everything below watches filtersKey instead,
+  // a string that only changes when a filter value really changes.
+  const filters: Record<string, string> = {};
+  for (const key of filterKeys) {
+    const raw = searchParams.get(key) ?? "";
+    filters[key] = raw && (!isValidFilter || isValidFilter(key, raw)) ? raw : "";
+  }
+  const filtersKey = JSON.stringify(filters);
 
   const filtersActive = Boolean(q || from || to || Object.values(filters).some(Boolean));
   const dateRangeInvalid = Boolean(from && to && from > to);
@@ -111,25 +115,25 @@ export function useAdminLogList<TPage extends PagedResult>({ filterKeys = [], is
 
   // ---- loading data ------------------------------------------------------------------------
   const [reloadToken, setReloadToken] = useState(0);
-  const [result, setResult] = useState<LoadResult<TPage>>({ key: "", page: null, error: null });
+  const [result, setResult] = useState<LoadResult<TPage>>({ key: "", page: null, error: null, loadedAt: 0 });
 
   const fetchRef = useRef(fetchPage);
   useEffect(() => {
     fetchRef.current = fetchPage;
   });
 
-  const queryKey = `${q}|${JSON.stringify(filters)}|${from}|${to}|${page}|${pageSize}`;
+  const queryKey = `${q}|${filtersKey}|${from}|${to}|${page}|${pageSize}`;
   const requestKey = `${queryKey}#${reloadToken}`;
   const apiQuery = useMemo(
     () => ({
       search: q || undefined,
-      ...Object.fromEntries(Object.entries(filters).map(([key, value]) => [key, value || undefined])),
+      ...Object.fromEntries(Object.entries(JSON.parse(filtersKey) as Record<string, string>).map(([key, value]) => [key, value || undefined])),
       from: from ? dayStartIso(from) : undefined,
       to: to ? nextDayStartIso(to) : undefined,
       page,
       pageSize,
     }),
-    [q, filters, from, to, page, pageSize],
+    [q, filtersKey, from, to, page, pageSize],
   );
 
   useEffect(() => {
@@ -138,11 +142,11 @@ export function useAdminLogList<TPage extends PagedResult>({ filterKeys = [], is
     fetchRef
       .current(apiQuery)
       .then((loaded) => {
-        if (!cancelled) setResult({ key: requestKey, page: loaded, error: null });
+        if (!cancelled) setResult({ key: requestKey, page: loaded, error: null, loadedAt: Date.now() });
       })
       .catch((error: unknown) => {
         if (!cancelled) {
-          setResult({ key: requestKey, page: null, error: isUnauthorized(error) ? "auth" : "failed" });
+          setResult({ key: requestKey, page: null, error: isUnauthorized(error) ? "auth" : "failed", loadedAt: Date.now() });
         }
       });
     return () => {
@@ -152,7 +156,7 @@ export function useAdminLogList<TPage extends PagedResult>({ filterKeys = [], is
 
   // ---- an expired session sends you to the login page and back here afterwards -------------
   const here = searchParams.toString() ? `${pathname}?${searchParams.toString()}` : pathname;
-  const loginHref = `/admin/login?from=${encodeURIComponent(here)}`;
+  const loginHref = `/login?from=${encodeURIComponent(here)}`;
 
   useEffect(() => {
     if (result.error === "auth") router.replace(loginHref);
@@ -191,6 +195,8 @@ export function useAdminLogList<TPage extends PagedResult>({ filterKeys = [], is
     filtersActive,
     dateRangeInvalid,
     setFilter: (key: string, value: string) => updateParams({ [key]: value }),
+    /** Sets or clears a URL parameter that is not a filter (for example the open member) and keeps the page. */
+    setParam: (key: string, value: string | null) => updateParams({ [key]: value }, { keepPage: true }),
     setDate: (key: "from" | "to", value: string) => updateParams({ [key]: value }),
     setPage: (next: number) => updateParams({ page: next <= 1 ? null : String(next) }, { keepPage: true }),
     setPageSize: (size: number) => updateParams({ size: size === DEFAULT_PAGE_SIZE ? null : String(size) }),
@@ -198,6 +204,8 @@ export function useAdminLogList<TPage extends PagedResult>({ filterKeys = [], is
     // data
     data: result.page,
     failed: result.error === "failed",
+    /** Time the current data arrived (milliseconds). */
+    loadedAt: result.loadedAt,
     loading: !dateRangeInvalid && result.key !== requestKey,
     /** Changes whenever the filters or page change, to reset per-row state such as an expanded row. */
     queryKey,

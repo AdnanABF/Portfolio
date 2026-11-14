@@ -150,3 +150,87 @@ export interface ActivityLogQuery extends LogQuery {
 export interface SystemLogQuery extends LogQuery {
   level?: string;
 }
+
+// ---- Members (admin users panel) -----------------------------------------------------------------
+
+export type MemberRole = "SuperAdmin" | "Admin" | "Member";
+export type MemberStatus = "active" | "pending" | "inactive" | "deleted";
+
+export interface MemberItem {
+  id: string;
+  fullName: string;
+  email: string;
+  userName: string;
+  role: MemberRole;
+  status: MemberStatus;
+  /** The owner account. It cannot be changed, turned off or deleted. */
+  isSuperAdmin: boolean;
+  emailConfirmed: boolean;
+  /** False when the member is turned off. */
+  isActive: boolean;
+  createdAt: string;
+  lastLoginAt: string | null;
+  lastLoginMethod: string | null;
+  lastLoginIp: string | null;
+  deletedAt: string | null;
+  /** Sessions that are signed in right now. */
+  activeSessions: number;
+}
+
+/** Counts for the whole user table. They ignore the list's search and filters. */
+export interface MemberStats {
+  /** Everyone who is not soft-deleted. */
+  totalUsers: number;
+  active: number;
+  pending: number;
+  inactive: number;
+  deleted: number;
+  admins: number;
+  members: number;
+  loggedInLast30Days: number;
+}
+
+export interface MemberPage {
+  items: MemberItem[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  stats: MemberStats;
+}
+
+export interface MemberQuery {
+  search?: string;
+  role?: string;
+  /** Empty means everyone except deleted members. */
+  status?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface MemberFormValues {
+  fullName: string;
+  email: string;
+  /** Admin or Member: SuperAdmin cannot be assigned. */
+  role: "Admin" | "Member";
+}
+
+/** Result of creating or editing a member: emailSent is false when the invite or verification email failed. */
+export interface MemberActionResult {
+  member: MemberItem;
+  emailSent: boolean;
+}
+
+export interface SessionItem {
+  id: string;
+  userId: string;
+  userEmail: string;
+  loginMethod: string;
+  deviceInfo: string;
+  ipAddress: string;
+  createdAt: string;
+  lastActiveAt: string;
+  expiresAt: string;
+  isOnline: boolean;
+  isRevoked: boolean;
+  isCurrent: boolean;
+}

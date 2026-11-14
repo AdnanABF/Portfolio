@@ -15,20 +15,21 @@ import {
   Terminal,
   XCircle,
 } from "lucide-react";
-import { LogToolbar } from "@/components/admin/LogToolbar";
+import { ListToolbar } from "@/components/admin/ListToolbar";
 import { Pagination } from "@/components/admin/Pagination";
 import { Dropdown } from "@/components/ui/Dropdown";
-import { PAGE_SIZES, useAdminLogList } from "@/hooks/useAdminLogList";
+import { PAGE_SIZES, useAdminList } from "@/hooks/useAdminList";
 import { getAdminSystemLogs } from "@/lib/api-client";
 import type { SystemLogPage } from "@/lib/types";
 
 const FILTER_KEYS = ["level"];
 const LEVELS = ["Error", "Warning", "Information"];
+const isValidLevel = (_key: string, value: string) => LEVELS.includes(value);
 
 function SystemLogsContent() {
-  const list = useAdminLogList<SystemLogPage>({
+  const list = useAdminList<SystemLogPage>({
     filterKeys: FILTER_KEYS,
-    isValidFilter: (_key, value) => LEVELS.includes(value),
+    isValidFilter: isValidLevel,
     fetchPage: (query) =>
       getAdminSystemLogs({
         search: query.search,
@@ -95,7 +96,7 @@ function SystemLogsContent() {
           </button>
         </div>
 
-        <LogToolbar
+        <ListToolbar
           searchInput={list.searchInput}
           onSearchChange={list.setSearchInput}
           searchPlaceholder="Search message, path or exception..."
@@ -113,7 +114,7 @@ function SystemLogsContent() {
             options={levelOptions}
             onChange={(value) => list.setFilter("level", value)}
           />
-        </LogToolbar>
+        </ListToolbar>
 
         {list.dateRangeInvalid && (
           <p role="alert" className="mt-3 font-mono text-xs text-accent-coral">

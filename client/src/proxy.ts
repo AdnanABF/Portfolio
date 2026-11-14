@@ -35,14 +35,13 @@ async function hasValidAdminSession(cookieHeader: string): Promise<boolean> {
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
 
-  // The login page is always reachable. It sends genuinely signed-in admins on to /admin itself,
-  // and redirecting away from it on a cookie alone would trap anyone holding a stale cookie.
+  // There is one sign-in page for everyone, /login. The old admin address just points there.
   if (pathname === "/admin/login") {
-    return NextResponse.next();
+    return NextResponse.redirect(new URL("/login", request.url));
   }
 
   const toLogin = () => {
-    const loginUrl = new URL("/admin/login", request.url);
+    const loginUrl = new URL("/login", request.url);
     // Keep the page (and its filters) so signing in lands the admin back where they were.
     loginUrl.searchParams.set("from", `${pathname}${search}`);
     return NextResponse.redirect(loginUrl);
