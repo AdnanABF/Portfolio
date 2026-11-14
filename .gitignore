@@ -21,3 +21,4 @@ appsettings.*.local.json
 
 # Antigravity / AI Agent local customizations
 .agents/
+CLAUDE.md
