@@ -43,8 +43,10 @@ public class ContactInquiryQueryValidator : AbstractValidator<ContactInquiryQuer
             .Must(t => string.IsNullOrWhiteSpace(t) || ContactInquiryTypes.IsValid(t))
             .WithMessage("Type must be contact or repo_request.");
 
+        // Capped so (page - 1) * pageSize cannot overflow an int and turn into a database error.
         RuleFor(x => x.Page)
-            .GreaterThanOrEqualTo(1).WithMessage("Page must be 1 or higher.");
+            .InclusiveBetween(1, Admin.ActivityLogQueryValidator.MaxPage)
+            .WithMessage($"Page must be between 1 and {Admin.ActivityLogQueryValidator.MaxPage}.");
 
         RuleFor(x => x.PageSize)
             .Must(size => AllowedPageSizes.Contains(size))

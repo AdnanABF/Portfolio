@@ -38,6 +38,8 @@ Shared sending lives in `Infrastructure/Email` (`IEmailSender`, `ResendEmailSend
 Messages and repo requests are managed through admin-only endpoints on `/api/contact`:
 
 - `GET /api/contact/inquiries`: one page of the inbox. Query options: `search` (name, email, subject or message, case-insensitive), `status` (`unread`, `read`, `replied`, `archived`; empty means everything except archived), `type` (`contact`, `repo_request`), `from` (inclusive) and `to` (exclusive) as ISO instants, `page` (from 1) and `pageSize` (10, 20, 30 or 50, default 10). Returns `items`, `totalCount`, `page`, `pageSize` and `unreadCount` (all unread messages, whatever the filters).
+- `GET /api/admin/activity`: one page of the activity log. Query options: `search` (action, summary, user email or entity type), `action`, `entityType` (exact), `from` (inclusive) and `to` (exclusive) as ISO instants, `page` (from 1) and `pageSize` (10, 20, 30 or 50, default 10). Returns `items`, `totalCount`, `page`, `pageSize`, plus `actions` and `entityTypes` (every value in the log, for filter dropdowns).
+- `GET /api/admin/system-logs`: one page of the error log. Query options: `search` (message, path or exception), `level` (`Error`, `Warning`, `Information`), `from`, `to`, `page`, `pageSize` as above. Returns `items`, `totalCount`, `page`, `pageSize` and `errorCount`, `warningCount`, `informationCount` (whatever the filters).
 - `PUT /api/contact/inquiries/{id}/status`: sets one status (body is the status as a JSON string). Unknown statuses are rejected.
 - `POST /api/contact/inquiries/bulk-status`: body `{ "ids": [...], "status": "archived" }`, up to 100 ids. Returns `{ "updated": n }`.
 

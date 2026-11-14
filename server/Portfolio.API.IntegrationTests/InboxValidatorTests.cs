@@ -76,6 +76,14 @@ public class InboxValidatorTests
     }
 
     [Fact]
+    public void Page_Is_Capped_So_The_Offset_Cannot_Overflow()
+    {
+        var max = Portfolio.API.Features.Admin.ActivityLogQueryValidator.MaxPage;
+        Assert.True(_query.Validate(new ContactInquiryQuery { Page = max }).IsValid);
+        Assert.False(_query.Validate(new ContactInquiryQuery { Page = int.MaxValue }).IsValid);
+    }
+
+    [Fact]
     public void Search_Is_Limited_To_100_Characters()
     {
         Assert.True(_query.Validate(new ContactInquiryQuery { Search = new string('a', 100) }).IsValid);
