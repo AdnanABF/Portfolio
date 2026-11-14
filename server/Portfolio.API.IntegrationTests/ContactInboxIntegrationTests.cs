@@ -139,8 +139,8 @@ public class ContactInboxIntegrationTests : IClassFixture<InboxFactory>
     {
         var marker = NewMarker();
         await SeedAsync(
-            Inquiry(marker, subject: "visible"),
-            Inquiry(marker, subject: "hidden", status: ContactInquiryStatuses.Archived));
+            Inquiry(marker, name: $"Visitor {marker}", subject: "visible"),
+            Inquiry(marker, name: $"Visitor {marker}", subject: "hidden", status: ContactInquiryStatuses.Archived));
 
         var normal = await GetPageAsync(Search(marker));
         var archived = await GetPageAsync($"{Search(marker)}&status=archived");
@@ -157,9 +157,9 @@ public class ContactInboxIntegrationTests : IClassFixture<InboxFactory>
     {
         var marker = NewMarker();
         await SeedAsync(
-            Inquiry(marker, subject: "u", status: ContactInquiryStatuses.Unread),
-            Inquiry(marker, subject: "r", status: ContactInquiryStatuses.Read),
-            Inquiry(marker, subject: "p", status: ContactInquiryStatuses.Replied));
+            Inquiry(marker, name: $"Visitor {marker}", subject: "u", status: ContactInquiryStatuses.Unread),
+            Inquiry(marker, name: $"Visitor {marker}", subject: "r", status: ContactInquiryStatuses.Read),
+            Inquiry(marker, name: $"Visitor {marker}", subject: "p", status: ContactInquiryStatuses.Replied));
 
         var page = await GetPageAsync($"{Search(marker)}&status={status}");
 
@@ -172,8 +172,8 @@ public class ContactInboxIntegrationTests : IClassFixture<InboxFactory>
     {
         var marker = NewMarker();
         await SeedAsync(
-            Inquiry(marker, subject: "message"),
-            Inquiry(marker, subject: "repo", type: ContactInquiryTypes.RepoRequest));
+            Inquiry(marker, name: $"Visitor {marker}", subject: "message"),
+            Inquiry(marker, name: $"Visitor {marker}", subject: "repo", type: ContactInquiryTypes.RepoRequest));
 
         var messages = await GetPageAsync($"{Search(marker)}&type=contact");
         var repoRequests = await GetPageAsync($"{Search(marker)}&type=repo_request");
@@ -189,8 +189,8 @@ public class ContactInboxIntegrationTests : IClassFixture<InboxFactory>
         var january = new DateTime(2020, 1, 15, 10, 0, 0, DateTimeKind.Utc);
         var february = new DateTime(2020, 2, 15, 10, 0, 0, DateTimeKind.Utc);
         await SeedAsync(
-            Inquiry(marker, subject: "january", createdAt: january),
-            Inquiry(marker, subject: "february", createdAt: february));
+            Inquiry(marker, name: $"Visitor {marker}", subject: "january", createdAt: january),
+            Inquiry(marker, name: $"Visitor {marker}", subject: "february", createdAt: february));
 
         var from = Uri.EscapeDataString(new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero).ToString("o"));
         var to = Uri.EscapeDataString(new DateTimeOffset(2020, 2, 1, 0, 0, 0, TimeSpan.Zero).ToString("o"));

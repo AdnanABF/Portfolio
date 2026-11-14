@@ -24,6 +24,7 @@ public class SwaggerIntegrationTests : IClassFixture<CustomWebApplicationFactory
         var body = await response.Content.ReadAsStringAsync();
 
         Assert.True(response.StatusCode == HttpStatusCode.OK, $"Swagger generation failed: {body}");
-        Assert.Contains("/api/media/upload", body);
+        // The route comes from the controller name, so it is written "/api/Media/upload"; compare ignoring case.
+        Assert.Contains("/api/media/upload", body, StringComparison.OrdinalIgnoreCase);
     }
 }

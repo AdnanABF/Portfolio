@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -21,8 +22,21 @@ public class AuthIntegrationTests : IClassFixture<CustomWebApplicationFactory>
 
     private static readonly (HttpMethod Method, string Route)[] AdminEndpoints =
     [
-        (HttpMethod.Get, "/api/admin/sessions"),
-        (HttpMethod.Delete, "/api/admin/sessions/00000000-0000-0000-0000-000000000001"),
+        (HttpMethod.Get, "/api/admin/users"),
+        (HttpMethod.Post, "/api/admin/users"),
+        (HttpMethod.Get, "/api/admin/users/00000000-0000-0000-0000-000000000001"),
+        (HttpMethod.Put, "/api/admin/users/00000000-0000-0000-0000-000000000001"),
+        (HttpMethod.Delete, "/api/admin/users/00000000-0000-0000-0000-000000000001"),
+        (HttpMethod.Post, "/api/admin/users/00000000-0000-0000-0000-000000000001/activate"),
+        (HttpMethod.Post, "/api/admin/users/00000000-0000-0000-0000-000000000001/deactivate"),
+        (HttpMethod.Post, "/api/admin/users/00000000-0000-0000-0000-000000000001/restore"),
+        (HttpMethod.Delete, "/api/admin/users/00000000-0000-0000-0000-000000000001/erase"),
+        (HttpMethod.Post, "/api/admin/users/00000000-0000-0000-0000-000000000001/resend-invite"),
+        (HttpMethod.Post, "/api/admin/users/00000000-0000-0000-0000-000000000001/reset-password"),
+        (HttpMethod.Get, "/api/admin/users/00000000-0000-0000-0000-000000000001/sessions"),
+        (HttpMethod.Delete, "/api/admin/users/00000000-0000-0000-0000-000000000001/sessions/00000000-0000-0000-0000-000000000002"),
+        (HttpMethod.Post, "/api/admin/users/00000000-0000-0000-0000-000000000001/sessions/revoke-all"),
+        (HttpMethod.Get, "/api/admin/users/00000000-0000-0000-0000-000000000001/activity"),
         (HttpMethod.Get, "/api/admin/activity"),
         (HttpMethod.Get, "/api/admin/system-logs"),
         (HttpMethod.Get, "/api/contact/inquiries"),
@@ -149,7 +163,7 @@ public class AuthIntegrationTests : IClassFixture<CustomWebApplicationFactory>
             CustomWebApplicationFactory.AdminPassword);
 
         // Request succeeds initially
-        var initialRes = await client.GetAsync("/api/admin/sessions");
+        var initialRes = await client.GetAsync("/api/admin/activity");
         Assert.Equal(HttpStatusCode.OK, initialRes.StatusCode);
 
         // Get the active session ID from DB
@@ -168,7 +182,7 @@ public class AuthIntegrationTests : IClassFixture<CustomWebApplicationFactory>
         await db.SaveChangesAsync();
 
         // Next request with existing cookie must be rejected with 401
-        var nextRes = await client.GetAsync("/api/admin/sessions");
+        var nextRes = await client.GetAsync("/api/admin/activity");
         Assert.Equal(HttpStatusCode.Unauthorized, nextRes.StatusCode);
     }
 
@@ -214,7 +228,7 @@ public class AuthIntegrationTests : IClassFixture<CustomWebApplicationFactory>
         Assert.Equal(HttpStatusCode.OK, revokeAllRes.StatusCode);
 
         // Device 2 must now be rejected with 401 Unauthorized
-        var client2After = await client2.GetAsync("/api/admin/sessions");
+        var client2After = await client2.GetAsync("/api/admin/activity");
         Assert.Equal(HttpStatusCode.Unauthorized, client2After.StatusCode);
     }
 
@@ -240,7 +254,16 @@ public class AuthIntegrationTests : IClassFixture<CustomWebApplicationFactory>
             "api/contact",
             "api/telemetry/visit",
             "api/telemetry/cv-download",
-            "api/auth/login"
+            "api/auth/login",
+            "api/auth/register",
+            "api/auth/verify-email",
+            "api/auth/accept-invite",
+            "api/auth/reset-password",
+            "api/auth/forgot-password",
+            "api/auth/resend-verification",
+            // Media files are served to anonymous visitors on purpose (images and downloads on the public site).
+            "api/Media/{id:guid}",
+            "api/Media/{id:guid}/download"
         };
 
         var anonymousEndpoints = endpoints
@@ -263,12 +286,21 @@ public class AuthIntegrationTests : IClassFixture<CustomWebApplicationFactory>
     {
         // The test client connects from loopback, which is trusted by default. Replace the
         // trusted network list so loopback is not a proxy: X-Forwarded-For must then be ignored.
+        //
+        // The in-memory test server has no real connection, so the remote address is null and the
+        // forwarded-headers middleware trusts every request. Give the request a real, untrusted
+        // address first (as a production connection would have), or the test proves nothing.
         var factory = _factory.WithWebHostBuilder(builder =>
+        {
             builder.ConfigureAppConfiguration((_, config) =>
                 config.AddInMemoryCollection(new Dictionary<string, string?>
                 {
                     ["ForwardedHeaders:KnownNetworks:0"] = "203.0.113.0/24"
-                })));
+                }));
+            builder.ConfigureServices(services =>
+                services.AddTransient<Microsoft.AspNetCore.Hosting.IStartupFilter>(_ =>
+                    new FixedRemoteAddressStartupFilter(System.Net.IPAddress.Parse("198.51.100.1"))));
+        });
         var client = factory.CreateClient();
         var clientIp = "198.51.100.77";
         var differentIp = "198.51.100.88";
@@ -307,4 +339,19 @@ public class AuthIntegrationTests : IClassFixture<CustomWebApplicationFactory>
         var spoofedRes = await client.SendAsync(spoofedReq);
         Assert.Equal(HttpStatusCode.TooManyRequests, spoofedRes.StatusCode);
     }
+}
+
+/// <summary>Sets the connection's remote address before the rest of the pipeline runs (the test server leaves it empty).</summary>
+internal sealed class FixedRemoteAddressStartupFilter(System.Net.IPAddress address) : Microsoft.AspNetCore.Hosting.IStartupFilter
+{
+    public Action<Microsoft.AspNetCore.Builder.IApplicationBuilder> Configure(
+        Action<Microsoft.AspNetCore.Builder.IApplicationBuilder> next) => app =>
+    {
+        app.Use((context, nextMiddleware) =>
+        {
+            context.Connection.RemoteIpAddress = address;
+            return nextMiddleware();
+        });
+        next(app);
+    };
 }
