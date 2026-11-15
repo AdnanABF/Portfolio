@@ -31,7 +31,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid
         base.OnModelCreating(builder);
 
         // Rename Identity tables for clean Postgres naming
-        builder.Entity<ApplicationUser>(b => b.ToTable("Users"));
+        builder.Entity<ApplicationUser>(b =>
+        {
+            b.ToTable("Users");
+            b.HasIndex(u => u.LastLoginAt);
+        });
         builder.Entity<IdentityRole<Guid>>(b => b.ToTable("Roles"));
         builder.Entity<IdentityUserRole<Guid>>(b => b.ToTable("UserRoles"));
         builder.Entity<IdentityUserClaim<Guid>>(b => b.ToTable("UserClaims"));

@@ -62,6 +62,10 @@ public class TelemetryService : ITelemetryService
             s => !s.IsRevoked && (DateTime.UtcNow - s.LastActiveAt).TotalMinutes < 5, 
             cancellationToken);
 
+        var since = DateTime.UtcNow.AddDays(-30);
+        var totalUsers = await _context.Users.CountAsync(u => u.DeletedAt == null, cancellationToken);
+        var usersLoggedIn = await _context.Users.CountAsync(u => u.DeletedAt == null && u.LastLoginAt >= since, cancellationToken);
+
         var topProjects = await _context.VisitorAnalytics
             .Where(v => v.Path.StartsWith("/projects/"))
             .GroupBy(v => v.Path.Replace("/projects/", ""))
@@ -92,6 +96,8 @@ public class TelemetryService : ITelemetryService
             TotalInquiries = totalInquiries,
             UnreadInquiries = unreadInquiries,
             ActiveSessionsCount = activeSessions,
+            TotalUsers = totalUsers,
+            UsersLoggedInLast30Days = usersLoggedIn,
             TopProjects = topProjects,
             TopReferrers = topReferrers,
             TopCountries = topCountries

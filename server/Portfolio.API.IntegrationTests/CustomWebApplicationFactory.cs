@@ -4,11 +4,25 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Portfolio.API.Core.Data;
 using Portfolio.API.Core.Entities;
+using Portfolio.API.Infrastructure.Email;
 
 namespace Portfolio.API.IntegrationTests;
+
+/// <summary>Keeps every email the API sends, so tests can read the links inside them.</summary>
+public sealed class CapturingEmailSender : IEmailSender
+{
+    public System.Collections.Concurrent.ConcurrentQueue<EmailMessage> Sent { get; } = new();
+
+    public Task SendAsync(EmailMessage message, CancellationToken cancellationToken = default)
+    {
+        Sent.Enqueue(message);
+        return Task.CompletedTask;
+    }
+}
 
 public class CustomWebApplicationFactory : WebApplicationFactory<Program>
 {
@@ -16,6 +30,15 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
     public const string AdminPassword = "AdminPassword123!";
     public const string RegularUserEmail = "test_regular@example.com";
     public const string RegularUserPassword = "UserPassword123!";
+
+    /// <summary>An Admin who is not the SuperAdmin: may use the admin area but not the members panel.</summary>
+    public const string AdminOnlyEmail = "test_adminonly@example.com";
+    public const string AdminOnlyPassword = "AdminOnly123!";
+
+    /// <summary>Test members use this domain so cleanup can find them.</summary>
+    public const string MemberEmailDomain = "@members.test";
+
+    public CapturingEmailSender Emails => Services.GetRequiredService<CapturingEmailSender>();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -37,6 +60,12 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
 
         builder.ConfigureServices(services =>
         {
+            // Emails are captured, never sent.
+            var capturing = new CapturingEmailSender();
+            services.AddSingleton(capturing);
+            services.RemoveAll<IEmailSender>();
+            services.AddSingleton<IEmailSender>(capturing);
+
             // Remove existing AppDbContext and DbContextOptions registrations
             var optionsDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<AppDbContext>));
             if (optionsDescriptor != null) services.Remove(optionsDescriptor);
@@ -61,8 +90,7 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
             db.Database.Migrate();
 
             // Ensure roles
-            string[] roles = ["SuperAdmin", "Admin", "Viewer"];
-            foreach (var role in roles)
+            foreach (var role in UserRoles.All)
             {
                 if (!roleManager.RoleExistsAsync(role).GetAwaiter().GetResult())
                 {
@@ -79,7 +107,7 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
                     UserName = AdminEmail,
                     Email = AdminEmail,
                     FullName = "Test Admin",
-                    Role = "Admin",
+                    Role = UserRoles.SuperAdmin,
                     EmailConfirmed = true,
                     CreatedAt = DateTime.UtcNow
                 };
@@ -96,12 +124,29 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
                     UserName = RegularUserEmail,
                     Email = RegularUserEmail,
                     FullName = "Regular Visitor",
-                    Role = "Viewer",
+                    Role = UserRoles.Member,
                     EmailConfirmed = true,
                     CreatedAt = DateTime.UtcNow
                 };
                 userManager.CreateAsync(reg, RegularUserPassword).GetAwaiter().GetResult();
-                userManager.AddToRoleAsync(reg, "Viewer").GetAwaiter().GetResult();
+                userManager.AddToRoleAsync(reg, UserRoles.Member).GetAwaiter().GetResult();
+            }
+
+            // Ensure a test Admin who is not the SuperAdmin
+            var adminOnly = userManager.FindByEmailAsync(AdminOnlyEmail).GetAwaiter().GetResult();
+            if (adminOnly == null)
+            {
+                adminOnly = new ApplicationUser
+                {
+                    UserName = AdminOnlyEmail,
+                    Email = AdminOnlyEmail,
+                    FullName = "Test Admin Only",
+                    Role = UserRoles.Admin,
+                    EmailConfirmed = true,
+                    CreatedAt = DateTime.UtcNow
+                };
+                userManager.CreateAsync(adminOnly, AdminOnlyPassword).GetAwaiter().GetResult();
+                userManager.AddToRoleAsync(adminOnly, UserRoles.Admin).GetAwaiter().GetResult();
             }
         });
     }
@@ -114,8 +159,10 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
             {
                 using var scope = Services.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                db.UserSessions.Where(s => s.User!.Email == AdminEmail || s.User!.Email == RegularUserEmail).ExecuteDelete();
-                db.Users.Where(u => u.Email == AdminEmail || u.Email == RegularUserEmail).ExecuteDelete();
+                db.UserSessions.Where(s => s.User!.Email == AdminEmail || s.User!.Email == RegularUserEmail || s.User!.Email == AdminOnlyEmail
+                    || s.User!.Email!.EndsWith(MemberEmailDomain)).ExecuteDelete();
+                db.Users.Where(u => u.Email == AdminEmail || u.Email == RegularUserEmail || u.Email == AdminOnlyEmail
+                    || u.Email!.EndsWith(MemberEmailDomain)).ExecuteDelete();
             }
             catch
             {

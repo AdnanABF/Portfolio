@@ -14,35 +14,13 @@ public class SessionManager : ISessionManager
         _context = context;
     }
 
-    public async Task<List<UserSessionDto>> GetAdminSessionsAsync()
+    public async Task<List<UserSessionDto>> GetUserSessionsAsync(Guid userId, Guid? currentSessionId, bool includeEnded = true)
     {
-        return await _context.UserSessions
-            .AsNoTracking()
-            .Include(s => s.User)
-            .OrderByDescending(s => s.LastActiveAt)
-            .Take(100)
-            .Select(s => new UserSessionDto
-            {
-                Id = s.Id,
-                UserId = s.UserId,
-                UserEmail = s.User != null ? s.User.Email ?? "" : "",
-                LoginMethod = s.LoginMethod,
-                DeviceInfo = s.DeviceInfo,
-                IpAddress = s.IpAddress,
-                CreatedAt = s.CreatedAt,
-                LastActiveAt = s.LastActiveAt,
-                ExpiresAt = s.ExpiresAt,
-                IsRevoked = s.IsRevoked,
-                IsCurrent = false
-            })
-            .ToListAsync();
-    }
+        var now = DateTime.UtcNow;
 
-    public async Task<List<UserSessionDto>> GetUserSessionsAsync(Guid userId, Guid? currentSessionId)
-    {
         return await _context.UserSessions
             .AsNoTracking()
-            .Where(s => s.UserId == userId)
+            .Where(s => s.UserId == userId && (includeEnded || (!s.IsRevoked && s.ExpiresAt > now)))
             .OrderByDescending(s => s.LastActiveAt)
             .Select(s => new UserSessionDto
             {
@@ -77,10 +55,10 @@ public class SessionManager : ISessionManager
         return true;
     }
 
-    public async Task RevokeAllUserSessionsAsync(Guid userId)
+    public async Task RevokeAllUserSessionsAsync(Guid userId, Guid? exceptSessionId = null)
     {
         var sessions = await _context.UserSessions
-            .Where(s => s.UserId == userId && !s.IsRevoked)
+            .Where(s => s.UserId == userId && !s.IsRevoked && (exceptSessionId == null || s.Id != exceptSessionId))
             .ToListAsync();
 
         foreach (var s in sessions)

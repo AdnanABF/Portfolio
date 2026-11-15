@@ -33,8 +33,7 @@ public static class DbInitializer
             }
 
             // 1. Roles
-            string[] roles = { "SuperAdmin", "Admin", "Editor", "Viewer" };
-            foreach (var roleName in roles)
+            foreach (var roleName in UserRoles.All)
             {
                 if (!await roleManager.RoleExistsAsync(roleName))
                 {
@@ -51,7 +50,7 @@ public static class DbInitializer
                     UserName = adminEmail,
                     Email = adminEmail,
                     FullName = "Adnan Bin Farook",
-                    Role = "Admin",
+                    Role = UserRoles.SuperAdmin,
                     EmailConfirmed = true,
                     CreatedAt = DateTime.UtcNow
                 };
@@ -59,7 +58,7 @@ public static class DbInitializer
                 var result = await userManager.CreateAsync(admin, adminPassword);
                 if (result.Succeeded)
                 {
-                    await userManager.AddToRolesAsync(admin, new[] { "Admin", "SuperAdmin" });
+                    await userManager.AddToRolesAsync(admin, new[] { UserRoles.Admin, UserRoles.SuperAdmin });
                     logger.LogInformation("Seeded Admin user: {Email}", adminEmail);
                 }
                 else
@@ -69,15 +68,54 @@ public static class DbInitializer
             }
             else
             {
-                if (!await userManager.IsInRoleAsync(existingAdmin, "Admin"))
+                if (!await userManager.IsInRoleAsync(existingAdmin, UserRoles.Admin))
                 {
-                    await userManager.AddToRoleAsync(existingAdmin, "Admin");
+                    await userManager.AddToRoleAsync(existingAdmin, UserRoles.Admin);
                     logger.LogInformation("Added Admin role to existing admin user: {Email}", adminEmail);
                 }
-                if (!await userManager.IsInRoleAsync(existingAdmin, "SuperAdmin"))
+                if (!await userManager.IsInRoleAsync(existingAdmin, UserRoles.SuperAdmin))
                 {
-                    await userManager.AddToRoleAsync(existingAdmin, "SuperAdmin");
+                    await userManager.AddToRoleAsync(existingAdmin, UserRoles.SuperAdmin);
                 }
+
+                // The configured owner account is always the SuperAdmin, active and not deleted: it cannot be
+                // locked out of its own site by a mistake in the members panel.
+                if (existingAdmin.Role != UserRoles.SuperAdmin || !existingAdmin.IsActive || existingAdmin.DeletedAt != null)
+                {
+                    existingAdmin.Role = UserRoles.SuperAdmin;
+                    existingAdmin.IsActive = true;
+                    existingAdmin.DeletedAt = null;
+                    await userManager.UpdateAsync(existingAdmin);
+                }
+            }
+
+            // Only the configured owner should hold SuperAdmin. If Admin:Email was changed, the previous owner still
+            // has the role. A typo in Admin:Email would look exactly the same, and demoting the real owner because of
+            // one would lock them out, so this only warns unless Admin:DemoteFormerOwners is set to true.
+            var demoteFormerOwners = config.GetValue<bool>("Admin:DemoteFormerOwners");
+            var owner = await userManager.FindByEmailAsync(adminEmail);
+            foreach (var other in await userManager.GetUsersInRoleAsync(UserRoles.SuperAdmin))
+            {
+                if (owner != null && other.Id == owner.Id) continue;
+
+                if (!demoteFormerOwners)
+                {
+                    logger.LogWarning(
+                        "User {UserId} holds the SuperAdmin role but is not the account of Admin:Email. " +
+                        "If Admin:Email was changed on purpose, set Admin:DemoteFormerOwners=true to demote them.", other.Id);
+                    continue;
+                }
+
+                await userManager.RemoveFromRoleAsync(other, UserRoles.SuperAdmin);
+                if (!await userManager.IsInRoleAsync(other, UserRoles.Admin))
+                {
+                    await userManager.AddToRoleAsync(other, UserRoles.Admin);
+                }
+
+                other.Role = UserRoles.Admin;
+                await userManager.UpdateAsync(other);
+                await userManager.UpdateSecurityStampAsync(other);
+                logger.LogWarning("User {UserId} is no longer the SuperAdmin: it is the account of Admin:Email now.", other.Id);
             }
 
             // 3. Projects

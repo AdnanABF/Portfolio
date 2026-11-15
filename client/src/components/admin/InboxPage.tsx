@@ -509,7 +509,7 @@ function InboxContent() {
 
   // ---- an expired session sends you to the login page and back here afterwards ---------------
   const here = searchParams.toString() ? `${pathname}?${searchParams.toString()}` : pathname;
-  const loginHref = `/admin/login?from=${encodeURIComponent(here)}`;
+  const loginHref = `/login?from=${encodeURIComponent(here)}`;
 
   useEffect(() => {
     if (result.error === "auth") router.replace(loginHref);

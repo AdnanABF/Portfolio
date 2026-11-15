@@ -12,13 +12,14 @@ import {
   LogOut,
   ShieldCheck,
   Terminal,
+  User,
   Users,
 } from "lucide-react";
 import { useAdmin } from "@/components/admin/AdminContext";
 import { apiLogout } from "@/lib/api-client";
 
 export function UserMenu() {
-  const { isAdmin, user, isLoading, isEditMode, toggleEditMode, refreshAuth } = useAdmin();
+  const { isAdmin, isSuperAdmin, account, isLoading, isEditMode, toggleEditMode, refreshAuth } = useAdmin();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -51,7 +52,7 @@ export function UserMenu() {
     setIsOpen(false);
     await apiLogout();
     await refreshAuth();
-    router.push("/admin/login");
+    router.push("/login");
   };
 
   if (isLoading) {
@@ -62,13 +63,13 @@ export function UserMenu() {
     );
   }
 
-  // Not logged in: show lock button linking to admin login
-  if (!isAdmin || !user) {
+  // Not logged in: a sign-in button
+  if (!account) {
     return (
       <Link
-        href="/admin/login"
-        aria-label="Admin Portal"
-        title="Admin Portal"
+        href="/login"
+        aria-label="Sign in"
+        title="Sign in"
         className="inline-flex h-10 w-10 items-center justify-center rounded-xl border-2 border-line bg-surface text-foreground shadow-[2px_2px_0px_var(--shadow-color)] transition-all hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0px_var(--shadow-color)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_var(--shadow-color)] outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary cursor-pointer hover:text-primary"
       >
         <Lock size={17} />
@@ -77,15 +78,15 @@ export function UserMenu() {
   }
 
   // Logged in user: initials
-  const initials = user.fullName
-    ? user.fullName
+  const initials = account.fullName
+    ? account.fullName
         .split(" ")
         .filter(Boolean)
         .map((n) => n[0])
         .slice(0, 2)
         .join("")
         .toUpperCase()
-    : user.email.slice(0, 2).toUpperCase();
+    : account.email.slice(0, 2).toUpperCase();
 
   return (
     <div className="relative" ref={menuRef}>
@@ -94,7 +95,7 @@ export function UserMenu() {
         onClick={() => setIsOpen((prev) => !prev)}
         aria-expanded={isOpen}
         aria-label="User account menu"
-        title={user.fullName || user.email}
+        title={account.fullName || account.email}
         className="group relative inline-flex h-10 w-10 items-center justify-center rounded-xl border-2 border-primary bg-primary/10 font-mono text-xs font-black text-primary shadow-[2px_2px_0px_var(--shadow-color)] transition-all hover:translate-x-[-1px] hover:translate-y-[-1px] hover:bg-primary hover:text-white hover:shadow-[3px_3px_0px_var(--shadow-color)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_var(--shadow-color)] outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary cursor-pointer"
       >
         <span>{initials}</span>
@@ -111,20 +112,21 @@ export function UserMenu() {
             </div>
             <div className="min-w-0 flex-1">
               <div className="truncate font-bold text-sm text-foreground">
-                {user.fullName || "Admin"}
+                {account.fullName || "Member"}
               </div>
               <div className="truncate font-mono text-[11px] text-muted">
-                {user.email}
+                {account.email}
               </div>
               <div className="mt-1 inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/10 px-1.5 py-0.5 font-mono text-[10px] font-bold text-primary">
                 <ShieldCheck className="h-3 w-3" />
-                <span>{user.role || "Admin"}</span>
+                <span>{account.role || "Member"}</span>
               </div>
             </div>
           </div>
 
           {/* Navigation Links */}
           <div className="mt-2 space-y-0.5">
+            {isAdmin && (
             <Link
               href="/admin"
               onClick={() => setIsOpen(false)}
@@ -133,72 +135,90 @@ export function UserMenu() {
               <LayoutDashboard className="h-4 w-4 text-primary" />
               <span>Dashboard Overview</span>
             </Link>
+            )}
 
+            {isSuperAdmin && (
             <Link
-              href="/admin/sessions"
+              href="/admin/members"
               onClick={() => setIsOpen(false)}
               className="flex items-center gap-2.5 rounded-xl px-3 py-2 font-mono text-xs font-semibold text-foreground transition-colors hover:bg-cream hover:text-primary"
             >
               <Users className="h-4 w-4 text-accent-coral" />
-              <span>Active Sessions</span>
+              <span>Members</span>
             </Link>
+            )}
 
             <Link
-              href="/admin/activity"
+              href="/account"
               onClick={() => setIsOpen(false)}
               className="flex items-center gap-2.5 rounded-xl px-3 py-2 font-mono text-xs font-semibold text-foreground transition-colors hover:bg-cream hover:text-primary"
             >
-              <Activity className="h-4 w-4 text-accent-mint" />
-              <span>Activity Log</span>
+              <User className="h-4 w-4 text-primary" />
+              <span>My Account</span>
             </Link>
 
-            <Link
-              href="/admin/inbox"
-              onClick={() => setIsOpen(false)}
-              className="flex items-center gap-2.5 rounded-xl px-3 py-2 font-mono text-xs font-semibold text-foreground transition-colors hover:bg-cream hover:text-primary"
+            {isAdmin && (
+              <>
+                <Link
+                  href="/admin/activity"
+                  onClick={() => setIsOpen(false)}
+                  className="flex items-center gap-2.5 rounded-xl px-3 py-2 font-mono text-xs font-semibold text-foreground transition-colors hover:bg-cream hover:text-primary"
             >
-              <Inbox className="h-4 w-4 text-accent-yellow" />
-              <span>Contact Inquiries</span>
-            </Link>
-
-            <Link
-              href="/admin/system-logs"
-              onClick={() => setIsOpen(false)}
-              className="flex items-center gap-2.5 rounded-xl px-3 py-2 font-mono text-xs font-semibold text-foreground transition-colors hover:bg-cream hover:text-primary"
+                  <Activity className="h-4 w-4 text-accent-mint" />
+                  <span>Activity Log</span>
+                </Link>
+                <Link
+                  href="/admin/inbox"
+                  onClick={() => setIsOpen(false)}
+                  className="flex items-center gap-2.5 rounded-xl px-3 py-2 font-mono text-xs font-semibold text-foreground transition-colors hover:bg-cream hover:text-primary"
             >
-              <Terminal className="h-4 w-4 text-muted" />
-              <span>System Logs</span>
-            </Link>
+                  <Inbox className="h-4 w-4 text-accent-yellow" />
+                  <span>Contact Inquiries</span>
+                </Link>
+                <Link
+                  href="/admin/system-logs"
+                  onClick={() => setIsOpen(false)}
+                  className="flex items-center gap-2.5 rounded-xl px-3 py-2 font-mono text-xs font-semibold text-foreground transition-colors hover:bg-cream hover:text-primary"
+            >
+                  <Terminal className="h-4 w-4 text-muted" />
+                  <span>System Logs</span>
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Divider */}
           <div className="my-1.5 border-b border-line" />
 
-          {/* Live Card Editing Toggle */}
-          <button
-            type="button"
-            onClick={() => {
-              toggleEditMode();
-            }}
-            className="flex w-full items-center justify-between rounded-xl px-3 py-2 font-mono text-xs font-semibold text-foreground transition-colors hover:bg-cream cursor-pointer"
-          >
-            <div className="flex items-center gap-2.5">
-              <Edit3 className="h-4 w-4 text-primary" />
-              <span>Live Card Editing</span>
-            </div>
-            <span
-              className={`rounded-md border px-2 py-0.5 text-[10px] font-bold ${
-                isEditMode
-                  ? "border-accent-mint bg-accent-mint text-neutral-950 shadow-[1px_1px_0px_var(--shadow-color)]"
-                  : "border-line bg-surface-2 text-muted"
-              }`}
-            >
-              {isEditMode ? "ON" : "OFF"}
-            </span>
-          </button>
+          {isAdmin && (
+            <>
+              {/* Live Card Editing Toggle */}
+              <button
+                type="button"
+                onClick={() => {
+                  toggleEditMode();
+                }}
+                className="flex w-full items-center justify-between rounded-xl px-3 py-2 font-mono text-xs font-semibold text-foreground transition-colors hover:bg-cream cursor-pointer"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Edit3 className="h-4 w-4 text-primary" />
+                  <span>Live Card Editing</span>
+                </div>
+                <span
+                  className={`rounded-md border px-2 py-0.5 text-[10px] font-bold ${
+                    isEditMode
+                      ? "border-accent-mint bg-accent-mint text-neutral-950 shadow-[1px_1px_0px_var(--shadow-color)]"
+                      : "border-line bg-surface-2 text-muted"
+                  }`}
+                >
+                  {isEditMode ? "ON" : "OFF"}
+                </span>
+              </button>
 
-          {/* Divider */}
-          <div className="my-1.5 border-b border-line" />
+              {/* Divider */}
+              <div className="my-1.5 border-b border-line" />
+            </>
+          )}
 
           {/* Logout */}
           <button

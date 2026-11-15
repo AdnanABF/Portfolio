@@ -64,6 +64,8 @@ public class AuthService : IAuthService
 
         // 4. Update user's last login
         user.LastLoginAt = DateTime.UtcNow;
+        user.LastLoginMethod = loginMethod;
+        user.LastLoginIp = ip;
         await _userManager.UpdateAsync(user);
 
         // 5. Sign in with application cookie + sid claim
@@ -73,27 +75,31 @@ public class AuthService : IAuthService
         await _activityLogger.LogAsync("USER_LOGIN", "User", user.Id.ToString(), $"User {user.Email} logged in via {loginMethod}.");
     }
 
-    public async Task<LoginResponse?> LoginAsync(LoginRequest request, HttpContext httpContext, CancellationToken cancellationToken = default)
+    public async Task<LoginOutcome> LoginAsync(LoginRequest request, HttpContext httpContext, CancellationToken cancellationToken = default)
     {
         var user = await _userManager.FindByEmailAsync(request.Email)
             ?? await _userManager.FindByNameAsync(request.Email);
-        if (user == null) return null;
+        if (user == null) return new LoginOutcome(null, LoginOutcome.InvalidCredentials);
 
         var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, lockoutOnFailure: true);
-        if (!result.Succeeded) return null;
+        if (!result.Succeeded) return new LoginOutcome(null, LoginOutcome.InvalidCredentials);
+
+        // The password was right, so it is safe to say why the account cannot sign in.
+        if (user.DeletedAt != null || !user.IsActive) return new LoginOutcome(null, LoginOutcome.AccountDisabled);
+        if (!user.EmailConfirmed) return new LoginOutcome(null, LoginOutcome.EmailNotVerified);
 
         await CompleteLoginAsync(user, "Password", httpContext, cancellationToken);
 
         var roles = await _userManager.GetRolesAsync(user);
 
-        return new LoginResponse
+        return new LoginOutcome(new LoginResponse
         {
             Token = string.Empty,
             Email = user.Email ?? "",
             FullName = user.FullName,
             Role = roles.FirstOrDefault() ?? user.Role,
             ExpiresAt = DateTime.UtcNow.AddDays(14)
-        };
+        }, null);
     }
 
     public async Task LogoutAsync(HttpContext httpContext)

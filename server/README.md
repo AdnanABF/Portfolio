@@ -43,6 +43,29 @@ Messages and repo requests are managed through admin-only endpoints on `/api/con
 - `PUT /api/contact/inquiries/{id}/status`: sets one status (body is the status as a JSON string). Unknown statuses are rejected.
 - `POST /api/contact/inquiries/bulk-status`: body `{ "ids": [...], "status": "archived" }`, up to 100 ids. Returns `{ "updated": n }`.
 
+## Members and accounts
+
+There are three roles. **SuperAdmin** is the owner: the one account whose email is the configured `Admin:Email`. It cannot be edited, turned off, deleted or demoted, and no one else can hold the role (at startup anyone else with it drops to Admin). **Admin** can use the admin area but not the members panel. **Member** is a signed-in visitor with no admin access. A member's status is worked out in this order: deleted, inactive, pending (email not confirmed), active.
+
+Members panel (SuperAdmin only), under `/api/admin/users`:
+
+- `GET /api/admin/users`: one page of members. Query options: `search` (name, email or username), `role`, `status` (`active`, `pending`, `inactive`, `deleted`; empty means everyone except deleted), `page`, `pageSize` as above. Returns `items`, `totalCount`, `page`, `pageSize` and `stats` (total users, counts per status and role, and `loggedInLast30Days`, whatever the filters).
+- `POST /api/admin/users` adds a member and sends an invite email; `PUT /{id}` edits name, email and role (Admin or Member). Changing the role or email signs the member out.
+- `POST /{id}/activate` and `/deactivate`, `DELETE /{id}` (soft delete) and `POST /{id}/restore`. Deactivating or deleting ends all of the member's sessions.
+- `DELETE /{id}/erase` with `{ "confirmEmail": "..." }` removes the account for good. In one transaction it replaces the member's name, email, IP and device in the activity log (rows they wrote, rows about them, and other rows that mention their email), in contact inquiries sent from their email, and in system log messages and exceptions, and it clears who uploaded any media. It does not touch database backups or logs kept outside the database (for example your hosting provider's).
+- `POST /{id}/resend-invite` and `POST /{id}/reset-password` send an email. Both return `{ "emailSent": bool }`.
+- `GET /{id}/sessions` (`includeEnded=true` to include ended ones), `DELETE /{id}/sessions/{sessionId}`, `POST /{id}/sessions/revoke-all`, and `GET /{id}/activity` (that member's activity log entries, paged).
+- Safety rules answer `409`: nobody can act on their own account or the SuperAdmin, and the last active admin cannot be removed.
+
+Public account endpoints under `/api/auth` (rate limited; they never reveal whether an email has an account):
+
+- `POST register` (sign-up; see the bot traps below), `POST verify-email`, `POST accept-invite`, `POST forgot-password`, `POST reset-password`, `POST resend-verification`.
+- Signed in: `PUT profile`, `POST change-password`, plus the existing `GET sessions`, `DELETE sessions/{id}` and `POST sessions/revoke-all`.
+- Sign-in answers `403` with `code` `email_not_verified` or `account_disabled`, but only after the password was correct.
+- Email links point to `App__PublicBaseUrl` and work for 3 days. It must be set outside Development: the API refuses to start without it.
+- Sign-up and sign-in bot traps use `contact_pref_url` (hidden field) and `fillTimeMs` (milliseconds the form was open, at least 3000). A second forgot-password or resend-verification for the same address within 2 minutes sends nothing.
+- If the owner email in `Admin__Email` changes, the previous owner keeps SuperAdmin and a warning is logged. Set `Admin__DemoteFormerOwners=true` for one start to demote them to Admin.
+
 ## Running Locally
 
 ```powershell

@@ -13,6 +13,7 @@ import {
   Inbox,
   Loader2,
   ShieldCheck,
+  UserCheck,
   Users,
 } from "lucide-react";
 import { getAdminAnalytics } from "@/lib/api-client";
@@ -24,16 +25,18 @@ interface AnalyticsData {
   totalInquiries?: number;
   unreadInquiries?: number;
   activeSessionsCount?: number;
+  totalUsers?: number;
+  usersLoggedInLast30Days?: number;
 }
 
 export function AdminDashboardPage() {
-  const { user, isAdmin, isLoading: authLoading } = useAdmin();
+  const { user, isAdmin, isSuperAdmin, isLoading: authLoading } = useAdmin();
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const router = useRouter();
 
   useEffect(() => {
     if (!authLoading && (!isAdmin || !user)) {
-      router.push("/admin/login");
+      router.push("/login?from=%2Fadmin");
       return;
     }
 
@@ -72,7 +75,7 @@ export function AdminDashboardPage() {
         </div>
 
         {/* Metrics Grid */}
-        <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="mt-8 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <div className="rounded-2xl border-3 border-line bg-surface p-5 shadow-[4px_4px_0px_var(--shadow-color)]">
             <div className="flex items-center justify-between text-muted">
               <span className="font-mono text-xs font-bold">TOTAL VISITS</span>
@@ -120,6 +123,27 @@ export function AdminDashboardPage() {
               {analytics?.activeSessionsCount ?? "1"}
             </div>
           </div>
+
+          <div className="rounded-2xl border-3 border-line bg-surface p-5 shadow-[4px_4px_0px_var(--shadow-color)]">
+            <div className="flex items-center justify-between text-muted">
+              <span className="font-mono text-xs font-bold">TOTAL USERS</span>
+              <Users className="h-4 w-4 text-primary" />
+            </div>
+            <div className="mt-2 text-3xl font-extrabold text-foreground">
+              {analytics?.totalUsers ?? "—"}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border-3 border-line bg-surface p-5 shadow-[4px_4px_0px_var(--shadow-color)]">
+            <div className="flex items-center justify-between text-muted">
+              <span className="font-mono text-xs font-bold">USERS · 30 DAYS</span>
+              <UserCheck className="h-4 w-4 text-accent-mint" />
+            </div>
+            <div className="mt-2 text-3xl font-extrabold text-foreground">
+              {analytics?.usersLoggedInLast30Days ?? "—"}
+            </div>
+            <span className="mt-1 inline-block font-mono text-[11px] text-muted">signed in</span>
+          </div>
         </div>
 
         {/* Quick Navigation Panels */}
@@ -158,23 +182,25 @@ export function AdminDashboardPage() {
             </div>
           </div>
 
-          {/* Panel 2: Sessions & Security */}
+          {/* Panel 2: Members (owner) or the admin's own account */}
           <div className="rounded-2xl border-3 border-line bg-surface p-6 shadow-[4px_4px_0px_var(--shadow-color)] flex flex-col justify-between">
             <div>
               <div className="flex items-center gap-2 text-accent-coral font-mono text-xs font-bold">
                 <Users className="h-4 w-4" />
                 <span>GOVERNANCE</span>
               </div>
-              <h3 className="mt-2 text-xl font-bold text-foreground">User & Device Sessions</h3>
+              <h3 className="mt-2 text-xl font-bold text-foreground">{isSuperAdmin ? "Members & Sessions" : "Your Account"}</h3>
               <p className="mt-2 text-xs text-muted leading-relaxed">
-                View connected devices, IP addresses, browser info, live online indicators, and terminate active sessions remotely.
+                {isSuperAdmin
+                  ? "Add and manage members, see who signed in and from which device, and sign devices out remotely."
+                  : "Change your name and password, and see or sign out the devices you are signed in on."}
               </p>
             </div>
             <Link
-              href="/admin/sessions"
+              href={isSuperAdmin ? "/admin/members" : "/account"}
               className="mt-6 flex items-center justify-between rounded-xl border-2 border-line bg-surface-2 px-4 py-2.5 font-mono text-xs font-bold text-foreground shadow-[2px_2px_0px_var(--shadow-color)] hover:-translate-y-0.5 transition-all"
             >
-              <span>Manage Sessions</span>
+              <span>{isSuperAdmin ? "Manage Members" : "Open My Account"}</span>
               <ArrowRight className="h-4 w-4" />
             </Link>
           </div>

@@ -4,8 +4,14 @@ import type {
   ExperienceItem,
   InquiryPage,
   InquiryQuery,
+  MemberActionResult,
+  MemberFormValues,
+  MemberItem,
+  MemberPage,
+  MemberQuery,
   PostItem,
   ProjectItem,
+  SessionItem,
   Skill,
   SystemLogPage,
   SystemLogQuery,
@@ -21,11 +27,69 @@ export function resolveUrl(path: string): string {
 export class ApiError extends Error {
   readonly status: number;
 
-  constructor(message: string, status: number) {
+  /** Messages from the server's validation, by field name (first letter lower case), for showing next to inputs. */
+  readonly fieldErrors: Record<string, string[]>;
+
+  /** A machine-readable reason some endpoints add, for example "email_not_verified". */
+  readonly code?: string;
+
+  constructor(message: string, status: number, options: { fieldErrors?: Record<string, string[]>; code?: string } = {}) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.fieldErrors = options.fieldErrors ?? {};
+    this.code = options.code;
   }
+}
+
+/**
+ * Turns a failed response into an ApiError. The API answers in two shapes: { message, errors } (errors by field)
+ * and a plain { Field: [messages] } object from request validation. Both end up as fieldErrors.
+ */
+async function readApiError(res: Response, fallback: string): Promise<ApiError> {
+  const body: unknown = await res.json().catch(() => null);
+  const record = body && typeof body === "object" ? (body as Record<string, unknown>) : null;
+
+  let message = typeof record?.message === "string" ? record.message : fallback;
+  const code = typeof record?.code === "string" ? record.code : undefined;
+
+  const source =
+    record && typeof record.errors === "object" && record.errors
+      ? (record.errors as Record<string, unknown>)
+      : record && record.message === undefined
+        ? record
+        : null;
+
+  const fieldErrors: Record<string, string[]> = {};
+  if (source) {
+    for (const [key, value] of Object.entries(source)) {
+      if (!Array.isArray(value)) continue;
+      fieldErrors[key.charAt(0).toLowerCase() + key.slice(1)] = value.map(String);
+    }
+    if (typeof record?.message !== "string") {
+      const first = Object.values(fieldErrors)[0]?.[0];
+      if (first) message = first;
+    }
+  }
+
+  return new ApiError(message, res.status, { fieldErrors, code });
+}
+
+/** Sends JSON (or nothing) and returns the parsed JSON answer, or undefined for an empty one. */
+async function sendJson<T>(path: string, method: string, body: unknown, fallback: string): Promise<T> {
+  const res = await safeFetch(
+    resolveUrl(path),
+    {
+      method,
+      headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+      credentials: "include",
+      body: body === undefined ? undefined : JSON.stringify(body),
+    },
+    10000,
+  );
+  if (!res.ok) throw await readApiError(res, fallback);
+  if (res.status === 204) return undefined as T;
+  return (await res.json().catch(() => undefined)) as T;
 }
 
 /** True when the error means the admin session is missing, expired or revoked. */
@@ -265,10 +329,9 @@ export async function apiLogin(email: string, password: string) {
   });
   if (!res.ok) {
     if (res.status === 429) {
-      throw new Error("Too many login attempts. Please wait 15 minutes before trying again.");
+      throw new ApiError("Too many login attempts. Please wait 15 minutes before trying again.", 429);
     }
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || "Login failed.");
+    throw await readApiError(res, "Login failed.");
   }
   return await res.json();
 }
@@ -430,27 +493,6 @@ export async function uploadMedia(
   };
 }
 
-export async function getAdminSessions() {
-  try {
-    const res = await safeFetch(resolveUrl("/api/admin/sessions"), {
-      credentials: "include",
-    });
-    if (!res.ok) return [];
-    return await res.json();
-  } catch {
-    return [];
-  }
-}
-
-export async function revokeSession(id: string) {
-  const res = await fetch(resolveUrl(`/api/admin/sessions/${id}`), {
-    method: "DELETE",
-    credentials: "include",
-  });
-  if (!res.ok) throw new Error("Failed to revoke session.");
-  return await res.json();
-}
-
 /** Builds "?a=1&b=2" from a query object, leaving out empty values. */
 function logQueryString(query: object): string {
   const params = new URLSearchParams();
@@ -562,3 +604,106 @@ export async function bulkUpdateInquiryStatus(ids: string[], status: string): Pr
   const body = await res.json();
   return typeof body.updated === "number" ? body.updated : 0;
 }
+
+// ==========================================
+// Members panel (SuperAdmin) and the signed-in member's own account
+// ==========================================
+
+function memberQueryString(query: MemberQuery): string {
+  return logQueryString(query);
+}
+
+/** One page of members. Search, filters and paging are done by the API. */
+export async function getMembers(query: MemberQuery = {}): Promise<MemberPage> {
+  const res = await safeFetch(
+    resolveUrl(`/api/admin/users${memberQueryString(query)}`),
+    { credentials: "include" },
+    10000,
+  );
+  if (!res.ok) throw await readApiError(res, "Failed to load members.");
+  return await readPage<MemberPage>(res, "members");
+}
+
+export const getMember = (id: string) =>
+  sendJson<MemberItem>(`/api/admin/users/${id}`, "GET", undefined, "Failed to load the member.");
+
+export const createMember = (values: MemberFormValues) =>
+  sendJson<MemberActionResult>("/api/admin/users", "POST", values, "Failed to add the member.");
+
+export const updateMember = (id: string, values: MemberFormValues) =>
+  sendJson<MemberActionResult>(`/api/admin/users/${id}`, "PUT", values, "Failed to save the member.");
+
+export const setMemberActive = (id: string, active: boolean) =>
+  sendJson<MemberItem>(`/api/admin/users/${id}/${active ? "activate" : "deactivate"}`, "POST", undefined, "Failed to change the member.");
+
+/** Soft delete: the member is hidden and cannot sign in, but can be restored. */
+export const deleteMember = (id: string) =>
+  sendJson<MemberItem>(`/api/admin/users/${id}`, "DELETE", undefined, "Failed to delete the member.");
+
+export const restoreMember = (id: string) =>
+  sendJson<MemberItem>(`/api/admin/users/${id}/restore`, "POST", undefined, "Failed to restore the member.");
+
+/** Permanent erase. The email has to be typed again as a safety check. */
+export const eraseMember = (id: string, confirmEmail: string) =>
+  sendJson<void>(`/api/admin/users/${id}/erase`, "DELETE", { confirmEmail }, "Failed to erase the member.");
+
+export const resendMemberInvite = (id: string) =>
+  sendJson<{ emailSent: boolean }>(`/api/admin/users/${id}/resend-invite`, "POST", undefined, "Failed to send the invite.");
+
+export const sendMemberPasswordReset = (id: string) =>
+  sendJson<{ emailSent: boolean }>(`/api/admin/users/${id}/reset-password`, "POST", undefined, "Failed to send the reset link.");
+
+export const getMemberSessions = (id: string, includeEnded: boolean) =>
+  sendJson<SessionItem[]>(`/api/admin/users/${id}/sessions?includeEnded=${includeEnded}`, "GET", undefined, "Failed to load sessions.");
+
+export const revokeMemberSession = (id: string, sessionId: string) =>
+  sendJson<void>(`/api/admin/users/${id}/sessions/${sessionId}`, "DELETE", undefined, "Failed to revoke the session.");
+
+export const revokeAllMemberSessions = (id: string) =>
+  sendJson<void>(`/api/admin/users/${id}/sessions/revoke-all`, "POST", undefined, "Failed to revoke the sessions.");
+
+/** One page of what a member did (sign-ins, edits): the activity log entries they wrote. */
+export async function getMemberActivity(id: string, query: { page?: number; pageSize?: number } = {}): Promise<ActivityLogPage> {
+  const res = await safeFetch(
+    resolveUrl(`/api/admin/users/${id}/activity${logQueryString(query)}`),
+    { credentials: "include" },
+    10000,
+  );
+  if (!res.ok) throw await readApiError(res, "Failed to load the history.");
+  return await readPage<ActivityLogPage>(res, "member history");
+}
+
+// ---- public account endpoints (sign-up, verification, invites, password reset) ----
+
+/** fillTimeMs and contactPrefUrl are the bot traps: how long the form was open, and a hidden field that stays empty. */
+export const registerAccount = (values: { fullName: string; email: string; password: string; contactPrefUrl: string; fillTimeMs: number }) =>
+  sendJson<{ message: string }>("/api/auth/register", "POST", values, "Sign-up failed.");
+
+export const verifyEmail = (userId: string, token: string) =>
+  sendJson<{ message: string }>("/api/auth/verify-email", "POST", { userId, token }, "This link is invalid or has expired.");
+
+/** Accepts an invite or finishes a password reset (the link proves the person owns the mailbox). */
+export const setPasswordWithToken = (kind: "accept-invite" | "reset-password", userId: string, token: string, password: string) =>
+  sendJson<{ message: string }>(`/api/auth/${kind}`, "POST", { userId, token, password }, "This link is invalid or has expired.");
+
+export const forgotPassword = (email: string) =>
+  sendJson<{ message: string }>("/api/auth/forgot-password", "POST", { email }, "Could not send the reset link.");
+
+export const resendVerification = (email: string) =>
+  sendJson<{ message: string }>("/api/auth/resend-verification", "POST", { email }, "Could not send the link.");
+
+export const updateProfile = (fullName: string) =>
+  sendJson<{ fullName: string }>("/api/auth/profile", "PUT", { fullName }, "Could not save your name.");
+
+export const changePassword = (currentPassword: string, newPassword: string) =>
+  sendJson<{ message: string }>("/api/auth/change-password", "POST", { currentPassword, newPassword }, "Could not change your password.");
+
+export const getMySessions = () =>
+  sendJson<SessionItem[]>("/api/auth/sessions", "GET", undefined, "Failed to load your sessions.");
+
+export const revokeMySession = (id: string) =>
+  sendJson<void>(`/api/auth/sessions/${id}`, "DELETE", undefined, "Failed to revoke the session.");
+
+/** Signs the member out of every device, including this one. */
+export const revokeAllMySessions = () =>
+  sendJson<void>("/api/auth/sessions/revoke-all", "POST", undefined, "Failed to sign out everywhere.");

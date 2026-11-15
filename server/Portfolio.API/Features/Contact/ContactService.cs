@@ -4,6 +4,7 @@ using Portfolio.API.Core.Data;
 using Portfolio.API.Core.Entities;
 using Portfolio.API.Infrastructure.Email;
 using Portfolio.API.Infrastructure.Logging;
+using Portfolio.API.Infrastructure.Querying;
 
 namespace Portfolio.API.Features.Contact;
 
@@ -110,12 +111,12 @@ public class ContactService : IContactService
         var search = query.Search?.Trim();
         if (!string.IsNullOrEmpty(search))
         {
-            var pattern = $"%{Portfolio.API.Infrastructure.Querying.LikeEscaper.Escape(search)}%";
+            var pattern = $"%{LikeEscaper.Escape(search)}%";
             inquiries = inquiries.Where(i =>
-                EF.Functions.ILike(i.Name, pattern) ||
-                EF.Functions.ILike(i.Email, pattern) ||
-                EF.Functions.ILike(i.Subject, pattern) ||
-                EF.Functions.ILike(i.Message, pattern));
+                EF.Functions.ILike(i.Name, pattern, LikeEscaper.EscapeCharacter) ||
+                EF.Functions.ILike(i.Email, pattern, LikeEscaper.EscapeCharacter) ||
+                EF.Functions.ILike(i.Subject, pattern, LikeEscaper.EscapeCharacter) ||
+                EF.Functions.ILike(i.Message, pattern, LikeEscaper.EscapeCharacter));
         }
 
         var totalCount = await inquiries.CountAsync(cancellationToken);
