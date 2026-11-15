@@ -7,6 +7,7 @@ public class SkillDto
     public string Name { get; set; } = string.Empty;
     public string? IconName { get; set; }
     public int SortOrder { get; set; }
+    public bool IsVisible { get; set; } = true;
 }
 
 public class SkillUpsertDto
@@ -15,4 +16,5 @@ public class SkillUpsertDto
     public string Name { get; set; } = string.Empty;
     public string? IconName { get; set; }
     public int SortOrder { get; set; }
+    public bool IsVisible { get; set; } = true;
 }

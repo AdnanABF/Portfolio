@@ -89,4 +89,20 @@ public class ProjectService : IProjectService
 
         return true;
     }
+
+    public async Task<bool> ReorderProjectsAsync(IReadOnlyList<Guid> orderedIds, CancellationToken cancellationToken = default)
+    {
+        var projects = await _context.Projects.Where(p => orderedIds.Contains(p.Id)).ToListAsync(cancellationToken);
+        if (projects.Count != orderedIds.Distinct().Count()) return false;
+
+        for (var i = 0; i < orderedIds.Count; i++)
+        {
+            projects.First(p => p.Id == orderedIds[i]).SortOrder = i;
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+        await _activityLogger.LogAsync("PROJECT_REORDER", "Project", "-", "Changed the projects order.");
+        await _cacheStore.EvictByTagAsync("projects", cancellationToken);
+        return true;
+    }
 }

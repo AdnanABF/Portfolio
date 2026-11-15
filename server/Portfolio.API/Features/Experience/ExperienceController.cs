@@ -1,3 +1,4 @@
+using Portfolio.API.Features.Homepage;
 using Portfolio.API.Infrastructure.Extensions;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
@@ -21,12 +22,13 @@ public class ExperienceController : ControllerBase
 
     [AllowAnonymous]
     [HttpGet]
-    [OutputCache(Tags = ["experience"])]
-    public async Task<ActionResult<List<ExperienceDto>>> GetAll(CancellationToken cancellationToken)
+    [OutputCache(PolicyName = "experience")]
+    public async Task<ActionResult<List<ExperienceDto>>> GetAll([FromQuery] bool includeHidden = false, CancellationToken cancellationToken = default)
     {
+        // Hidden items are only ever returned to admins, whatever the query string says.
         return await this.UnlessClientHungUp<List<ExperienceDto>>(async () =>
         {
-            var items = await _experienceService.GetAllExperiencesAsync(cancellationToken);
+            var items = await _experienceService.GetAllExperiencesAsync(includeHidden && User.IsAdmin(), cancellationToken);
             return Ok(items);
         }, cancellationToken);
     }
@@ -43,6 +45,14 @@ public class ExperienceController : ControllerBase
 
         var created = await _experienceService.CreateExperienceAsync(dto, cancellationToken);
         return CreatedAtAction(nameof(GetAll), new { id = created.Id }, created);
+    }
+
+    [HttpPut("order")]
+    [Authorize(Policy = "AdminOnly")]
+    public async Task<IActionResult> Reorder([FromBody] ReorderDto dto, CancellationToken cancellationToken)
+    {
+        if (dto.Ids == null || dto.Ids.Count == 0 || dto.Ids.Count > 500) return BadRequest(new { message = "Send the ids in the new order." });
+        return await _experienceService.ReorderExperiencesAsync(dto.Ids, cancellationToken) ? NoContent() : NotFound();
     }
 
     [HttpPut("{id:guid}")]

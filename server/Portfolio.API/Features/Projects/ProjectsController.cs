@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.AspNetCore.RateLimiting;
 using Portfolio.API.Features.Contact;
+using Portfolio.API.Features.Homepage;
 using Portfolio.API.Infrastructure.Extensions;
 
 namespace Portfolio.API.Features.Projects;
@@ -114,6 +115,14 @@ public class ProjectsController : ControllerBase
         var updated = await _projectService.UpdateProjectAsync(id, dto, cancellationToken);
         if (updated == null) return NotFound();
         return Ok(updated);
+    }
+
+    [HttpPut("order")]
+    [Authorize(Policy = "AdminOnly")]
+    public async Task<IActionResult> Reorder([FromBody] ReorderDto dto, CancellationToken cancellationToken = default)
+    {
+        if (dto.Ids == null || dto.Ids.Count == 0 || dto.Ids.Count > 500) return BadRequest(new { message = "Send the ids in the new order." });
+        return await _projectService.ReorderProjectsAsync(dto.Ids, cancellationToken) ? NoContent() : NotFound();
     }
 
     [HttpDelete("{id:guid}")]

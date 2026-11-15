@@ -21,10 +21,11 @@ public class SkillsService : ISkillsService
         _cacheStore = cacheStore;
     }
 
-    public async Task<List<SkillDto>> GetAllSkillsAsync(CancellationToken cancellationToken = default)
+    public async Task<List<SkillDto>> GetAllSkillsAsync(bool includeHidden = false, CancellationToken cancellationToken = default)
     {
         return await _context.Skills
             .AsNoTracking()
+            .Where(s => includeHidden || s.IsVisible)
             .OrderBy(s => s.SortOrder)
             .Select(s => s.ToDto())
             .ToListAsync(cancellationToken);
@@ -67,6 +68,22 @@ public class SkillsService : ISkillsService
         await _activityLogger.LogAsync("SKILL_DELETE", "Skill", id.ToString(), $"Deleted skill: {skill.Name}");
         await _cacheStore.EvictByTagAsync("skills", cancellationToken);
 
+        return true;
+    }
+
+    public async Task<bool> ReorderSkillsAsync(IReadOnlyList<Guid> orderedIds, CancellationToken cancellationToken = default)
+    {
+        var skills = await _context.Skills.Where(s => orderedIds.Contains(s.Id)).ToListAsync(cancellationToken);
+        if (skills.Count != orderedIds.Distinct().Count()) return false;
+
+        for (var i = 0; i < orderedIds.Count; i++)
+        {
+            skills.First(s => s.Id == orderedIds[i]).SortOrder = i;
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+        await _activityLogger.LogAsync("SKILL_REORDER", "Skill", "-", "Changed the skills order.");
+        await _cacheStore.EvictByTagAsync("skills", cancellationToken);
         return true;
     }
 }

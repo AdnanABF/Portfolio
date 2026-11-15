@@ -66,6 +66,19 @@ Public account endpoints under `/api/auth` (rate limited; they never reveal whet
 - Sign-up and sign-in bot traps use `contact_pref_url` (hidden field) and `fillTimeMs` (milliseconds the form was open, at least 3000). A second forgot-password or resend-verification for the same address within 2 minutes sends nothing.
 - If the owner email in `Admin__Email` changes, the previous owner keeps SuperAdmin and a warning is logged. Set `Admin__DemoteFormerOwners=true` for one start to demote them to Admin.
 
+## Home page content
+
+Everything on the public home page that is plain content (name, photo, CV, titles, links, availability, location, About cards, section order and headings, search title and description) is one JSON document with two copies: a **draft** and the **published** version. Visitors only ever see the published one.
+
+- `GET /api/site-content` (public, cached): the published content.
+- `GET /api/admin/site-content`: the draft, with `hasUnpublishedChanges`, who saved it and when.
+- `PUT /api/admin/site-content`: saves the draft. Links and images must start with `https://`, `mailto:`, `tel:` or `/`, lists have size limits, and every section (about, experience, skills, projects, contact) appears exactly once.
+- `POST /api/admin/site-content/publish` copies the draft to the published version and clears the cache. `POST /api/admin/site-content/discard` resets the draft to the published version.
+
+Experience, skills and projects keep their own endpoints and save immediately. `GET /api/skills`, `/api/experience` and `/api/projects` only list hidden items (or unpublished projects) for admins who add `?includeHidden=true` (`includeDrafts=true` for projects). `PUT /api/skills/order`, `/api/experience/order` and `/api/projects/order` take `{ "ids": [...] }` in the new display order.
+
+The home page data comes from the owner's CV (`CvSeedData`, `HomepageContentDefaults`; phone number and visa details are not included). `CvSeedData.Version` marks which CV the data is from. On every start the API compares it with the version stored in the database: when they differ, which is a new database or a deploy that brought a newer CV, the old experience, skills, projects, home page text and old key/value settings are replaced with the CV data in one transaction. The uploaded photo and CV file, blog posts, messages and members are kept, and projects with the same page address keep their id (so access requests stay linked). When the version matches, nothing is replaced, so edits made in the admin hub survive restarts. To publish a newer CV: update the data in those two files and change `Version`. `Content__ReplaceWithCvSeed=true` forces a replacement on one start (switch it off again).
+
 ## Running Locally
 
 ```powershell

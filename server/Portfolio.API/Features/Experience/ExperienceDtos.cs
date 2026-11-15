@@ -9,6 +9,7 @@ public class ExperienceDto
     public string Period { get; set; } = string.Empty;
     public List<string> Achievements { get; set; } = new();
     public int SortOrder { get; set; }
+    public bool IsVisible { get; set; } = true;
 }
 
 public class ExperienceUpsertDto
@@ -19,4 +20,5 @@ public class ExperienceUpsertDto
     public string Period { get; set; } = string.Empty;
     public List<string> Achievements { get; set; } = new();
     public int SortOrder { get; set; }
+    public bool IsVisible { get; set; } = true;
 }
