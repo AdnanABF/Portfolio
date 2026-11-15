@@ -5,15 +5,18 @@ export function SectionHeading({
   title,
   description,
   align = "center",
+  compact = false,
 }: {
   eyebrow?: string;
   title: ReactNode;
   description?: string;
   align?: "center" | "left";
+  /** Less space below, for a heading that sits right above its own text. */
+  compact?: boolean;
 }) {
   const alignClass = align === "center" ? "text-center items-center" : "text-left items-start";
   return (
-    <div className={`mb-12 flex flex-col gap-3 ${alignClass}`}>
+    <div className={`${compact ? "mb-4" : "mb-12"} flex flex-col gap-3 ${alignClass}`}>
       {eyebrow ? (
         <span className="font-mono text-sm text-primary">{eyebrow}</span>
       ) : null}

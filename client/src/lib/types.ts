@@ -1,8 +1,8 @@
 export interface Skill {
   id?: string;
   name: string;
-  category: "Modern" | "Microsoft" | "Legacy" | "Tools";
-  level: number; // 0-100
+  /** Free text, as in the CV ("Languages", ".NET & Backend", ...). Skills are grouped by it. */
+  category: string;
 }
 
 export interface ExperienceItem {
@@ -10,8 +10,89 @@ export interface ExperienceItem {
   role: string;
   company: string;
   period: string;
+  location?: string;
   description: string[];
   tech: string[];
+}
+
+export interface EducationItem {
+  id: string;
+  institution: string;
+  qualification: string;
+  location: string;
+  period: string;
+  details: string[];
+}
+
+export interface CertificationItem {
+  id: string;
+  title: string;
+  issuer: string;
+  issuedOn: string;
+  credentialUrl: string;
+}
+
+// ---- Home page admin (the editable lists, as the API sends them to admins) -------------------
+
+export interface AdminSkill {
+  id: string;
+  category: string;
+  name: string;
+  iconName?: string | null;
+  sortOrder: number;
+  isVisible: boolean;
+}
+
+export interface AdminExperience {
+  id: string;
+  role: string;
+  company: string;
+  location: string;
+  period: string;
+  achievements: string[];
+  sortOrder: number;
+  isVisible: boolean;
+}
+
+export interface AdminEducation {
+  id: string;
+  institution: string;
+  qualification: string;
+  location: string;
+  period: string;
+  details: string[];
+  sortOrder: number;
+  isVisible: boolean;
+}
+
+export interface AdminCertification {
+  id: string;
+  title: string;
+  issuer: string;
+  issuedOn: string;
+  credentialUrl: string;
+  sortOrder: number;
+  isVisible: boolean;
+}
+
+export interface AdminProject {
+  id: string;
+  slug: string;
+  title: string;
+  tagline: string;
+  description: string;
+  heroImageUrl: string;
+  tags: string[];
+  screenshots: string[];
+  liveUrl: string;
+  githubUrl: string;
+  isFeatured: boolean;
+  isPublished: boolean;
+  isRepoPrivate: boolean;
+  sortOrder: number;
+  keyMetricsJson?: string | null;
+  contentMarkdown: string;
+  updatedAt: string;
 }
 
 export interface ProjectItem {
@@ -26,6 +107,8 @@ export interface ProjectItem {
   imageUrl: string;
   isPrivate?: boolean;
   isPublished?: boolean;
+  /** A short label such as "Ongoing, 2025", taken from the bold first line of the project's details text. */
+  badge?: string;
 }
 
 export interface PostItem {
@@ -33,11 +116,6 @@ export interface PostItem {
   title: string;
   excerpt: string;
   publishedAt: string;
-}
-
-export interface NavItem {
-  label: string;
-  href: string;
 }
 
 // ---- Admin inbox ----------------------------------------------------------

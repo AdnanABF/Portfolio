@@ -7,39 +7,22 @@ import { useEffect, useState } from "react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { UserMenu } from "@/components/site/UserMenu";
 import { LinkButton } from "@/components/ui/Button";
-import { getExperience, getProjects, getSkills } from "@/lib/api-client";
-import { NAV_ITEMS } from "@/lib/data";
+import { useSiteContent } from "@/components/site/SiteContentProvider";
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [navItems, setNavItems] = useState(NAV_ITEMS);
+  const { profile, sections } = useSiteContent();
+
+  // The links come straight from the home page content (the same list that orders the page), so they never
+  // depend on any other request and cannot disappear because one failed.
+  const navItems = sections.filter((s) => s.enabled).map((s) => ({ label: s.label, href: `/#${s.id}` }));
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
     handleScroll();
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  useEffect(() => {
-    let isMounted = true;
-    Promise.all([getProjects(), getSkills(), getExperience()]).then(
-      ([projects, skills, experience]) => {
-        if (!isMounted) return;
-        setNavItems(
-          NAV_ITEMS.filter((item) => {
-            if (item.href === "/#projects") return projects.length > 0;
-            if (item.href === "/#skills") return skills.length > 0;
-            if (item.href === "/#experience") return experience.length > 0;
-            return true;
-          })
-        );
-      }
-    );
-    return () => {
-      isMounted = false;
-    };
   }, []);
 
   return (
@@ -56,7 +39,7 @@ export function Navbar() {
           <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-2 border-line bg-surface p-1 shadow-[2.5px_2.5px_0px_var(--shadow-color)] transition-all duration-150 group-hover:-translate-x-0.5 group-hover:-translate-y-0.5 group-hover:shadow-[4px_4px_0px_var(--shadow-color)]">
             <Image
               src="/abf_logo.png"
-              alt="Adnan Bin Farook Logo"
+              alt={`${profile.name} logo`}
               width={36}
               height={36}
               className="h-full w-full object-contain"
@@ -65,10 +48,10 @@ export function Navbar() {
           </div>
           <div className="flex flex-col">
             <span className="text-lg font-bold tracking-tight text-foreground transition-colors group-hover:text-primary md:text-xl">
-              Adnan Bin Farook
+              {profile.name}
             </span>
             <span className="font-mono text-xs tracking-wider text-muted transition-colors group-hover:text-foreground">
-              Software Engineer
+              {profile.role}
             </span>
           </div>
         </Link>
@@ -91,7 +74,7 @@ export function Navbar() {
         {/* Right: Hire Me + Theme + Mobile Toggle */}
         <div className="z-20 flex items-center gap-3">
           <LinkButton href="/#contact" className="px-5 py-2 max-md:hidden">
-            Hire Me
+            {profile.hireMeLabel}
           </LinkButton>
           <ThemeToggle />
           <UserMenu />
@@ -136,7 +119,7 @@ export function Navbar() {
             onClick={() => setIsOpen(false)}
             className="rounded-lg bg-primary py-3 text-center font-bold text-white transition-all hover:bg-primary-strong dark:text-black"
           >
-            Hire Me
+            {profile.hireMeLabel}
           </Link>
         </div>
       </div>

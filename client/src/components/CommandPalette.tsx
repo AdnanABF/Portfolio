@@ -3,7 +3,8 @@
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { getSettings, trackCvDownload } from "@/lib/api-client";
+import { useSiteContent } from "@/components/site/SiteContentProvider";
+import { trackCvDownload } from "@/lib/api-client";
 import {
   Briefcase,
   Code2,
@@ -31,25 +32,7 @@ export function CommandPalette() {
   const [query, setQuery] = useState("");
   const router = useRouter();
   const { theme, setTheme } = useTheme();
-  const [cvUrl, setCvUrl] = useState<string>("");
-
-  useEffect(() => {
-    let isMounted = true;
-    getSettings().then((settings) => {
-      if (!isMounted) return;
-      if (settings.hero_photo_cv) {
-        try {
-          const parsed = JSON.parse(settings.hero_photo_cv);
-          if (parsed.cvUrl) setCvUrl(parsed.cvUrl);
-        } catch {
-          // ignore
-        }
-      }
-    });
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  const cvUrl = useSiteContent().profile.cvUrl;
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

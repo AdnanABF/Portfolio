@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Activity,
-  Edit3,
+  PenSquare,
   Inbox,
   LayoutDashboard,
   Lock,
@@ -19,7 +19,7 @@ import { useAdmin } from "@/components/admin/AdminContext";
 import { apiLogout } from "@/lib/api-client";
 
 export function UserMenu() {
-  const { isAdmin, isSuperAdmin, account, isLoading, isEditMode, toggleEditMode, refreshAuth } = useAdmin();
+  const { isAdmin, isSuperAdmin, account, isLoading, refreshAuth } = useAdmin();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -137,6 +137,17 @@ export function UserMenu() {
             </Link>
             )}
 
+            {isAdmin && (
+            <Link
+              href="/admin/homepage"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-2.5 rounded-xl px-3 py-2 font-mono text-xs font-semibold text-foreground transition-colors hover:bg-cream hover:text-primary"
+            >
+              <PenSquare className="h-4 w-4 text-primary" />
+              <span>Edit Home Page</span>
+            </Link>
+            )}
+
             {isSuperAdmin && (
             <Link
               href="/admin/members"
@@ -189,36 +200,6 @@ export function UserMenu() {
 
           {/* Divider */}
           <div className="my-1.5 border-b border-line" />
-
-          {isAdmin && (
-            <>
-              {/* Live Card Editing Toggle */}
-              <button
-                type="button"
-                onClick={() => {
-                  toggleEditMode();
-                }}
-                className="flex w-full items-center justify-between rounded-xl px-3 py-2 font-mono text-xs font-semibold text-foreground transition-colors hover:bg-cream cursor-pointer"
-              >
-                <div className="flex items-center gap-2.5">
-                  <Edit3 className="h-4 w-4 text-primary" />
-                  <span>Live Card Editing</span>
-                </div>
-                <span
-                  className={`rounded-md border px-2 py-0.5 text-[10px] font-bold ${
-                    isEditMode
-                      ? "border-accent-mint bg-accent-mint text-neutral-950 shadow-[1px_1px_0px_var(--shadow-color)]"
-                      : "border-line bg-surface-2 text-muted"
-                  }`}
-                >
-                  {isEditMode ? "ON" : "OFF"}
-                </span>
-              </button>
-
-              {/* Divider */}
-              <div className="my-1.5 border-b border-line" />
-            </>
-          )}
 
           {/* Logout */}
           <button
