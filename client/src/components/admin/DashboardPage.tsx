@@ -148,38 +148,25 @@ export function AdminDashboardPage() {
 
         {/* Quick Navigation Panels */}
         <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Panel 1: In-Context Live Editing */}
+          {/* Panel 1: Home page editor */}
           <div className="rounded-2xl border-3 border-line bg-surface p-6 shadow-[4px_4px_0px_var(--shadow-color)] flex flex-col justify-between">
             <div>
               <div className="flex items-center gap-2 text-primary font-mono text-xs font-bold">
                 <FolderGit2 className="h-4 w-4" />
-                <span>IN-CONTEXT EDITING</span>
+                <span>HOME PAGE</span>
               </div>
               <h3 className="mt-2 text-xl font-bold text-foreground">Public Website Content</h3>
               <p className="mt-2 text-xs text-muted leading-relaxed">
-                Edit your projects, experience timeline, bio, and upload new CV/photos directly on the public website with live re-rendering.
+                Edit everything on the home page: photo, CV, titles, links, availability, location, About, projects, experience and skills. Preview as you type, then publish.
               </p>
             </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Link
-                href="/#projects"
-                className="rounded-lg border border-line bg-surface-2 px-3 py-1.5 font-mono text-xs font-bold text-foreground hover:bg-cream transition-all"
-              >
-                Projects →
-              </Link>
-              <Link
-                href="/#experience"
-                className="rounded-lg border border-line bg-surface-2 px-3 py-1.5 font-mono text-xs font-bold text-foreground hover:bg-cream transition-all"
-              >
-                Experience →
-              </Link>
-              <Link
-                href="/#skills"
-                className="rounded-lg border border-line bg-surface-2 px-3 py-1.5 font-mono text-xs font-bold text-foreground hover:bg-cream transition-all"
-              >
-                Skills →
-              </Link>
-            </div>
+            <Link
+              href="/admin/homepage"
+              className="mt-6 flex items-center justify-between rounded-xl border-2 border-line bg-surface-2 px-4 py-2.5 font-mono text-xs font-bold text-foreground shadow-[2px_2px_0px_var(--shadow-color)] hover:-translate-y-0.5 transition-all"
+            >
+              <span>Open the editor</span>
+              <span>→</span>
+            </Link>
           </div>
 
           {/* Panel 2: Members (owner) or the admin's own account */}

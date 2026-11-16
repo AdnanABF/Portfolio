@@ -23,5 +23,8 @@ public class Experience
 
     public int SortOrder { get; set; } = 0;
 
+    /// <summary>Hidden items stay in the admin hub but are not shown on the public site.</summary>
+    public bool IsVisible { get; set; } = true;
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

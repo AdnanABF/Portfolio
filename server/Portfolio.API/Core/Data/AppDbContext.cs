@@ -22,7 +22,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid
     public DbSet<BlogPost> BlogPosts => Set<BlogPost>();
     public DbSet<Experience> Experiences => Set<Experience>();
     public DbSet<Skill> Skills => Set<Skill>();
+    public DbSet<Education> Educations => Set<Education>();
+    public DbSet<Certification> Certifications => Set<Certification>();
     public DbSet<SiteSetting> SiteSettings => Set<SiteSetting>();
+    public DbSet<SiteContent> SiteContents => Set<SiteContent>();
     public DbSet<ContactInquiry> ContactInquiries => Set<ContactInquiry>();
     public DbSet<MediaAsset> MediaAssets => Set<MediaAsset>();
 
@@ -102,6 +105,16 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid
         builder.Entity<Experience>(b =>
         {
             b.HasIndex(e => e.SortOrder);
+        });
+
+        builder.Entity<Education>(b =>
+        {
+            b.HasIndex(e => e.SortOrder);
+        });
+
+        builder.Entity<Certification>(b =>
+        {
+            b.HasIndex(c => c.SortOrder);
         });
 
         builder.Entity<Skill>(b =>

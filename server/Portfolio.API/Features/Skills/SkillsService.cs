@@ -1,3 +1,4 @@
+using Portfolio.API.Features.Homepage;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.EntityFrameworkCore;
 using Portfolio.API.Core.Data;
@@ -21,10 +22,11 @@ public class SkillsService : ISkillsService
         _cacheStore = cacheStore;
     }
 
-    public async Task<List<SkillDto>> GetAllSkillsAsync(CancellationToken cancellationToken = default)
+    public async Task<List<SkillDto>> GetAllSkillsAsync(bool includeHidden = false, CancellationToken cancellationToken = default)
     {
         return await _context.Skills
             .AsNoTracking()
+            .Where(s => includeHidden || s.IsVisible)
             .OrderBy(s => s.SortOrder)
             .Select(s => s.ToDto())
             .ToListAsync(cancellationToken);
@@ -67,6 +69,17 @@ public class SkillsService : ISkillsService
         await _activityLogger.LogAsync("SKILL_DELETE", "Skill", id.ToString(), $"Deleted skill: {skill.Name}");
         await _cacheStore.EvictByTagAsync("skills", cancellationToken);
 
+        return true;
+    }
+
+    public async Task<bool> ReorderSkillsAsync(IReadOnlyList<Guid> orderedIds, CancellationToken cancellationToken = default)
+    {
+        var skills = await _context.Skills.ToListAsync(cancellationToken);
+        if (!ReorderHelper.Apply(skills, orderedIds, s => s.Id, s => s.SortOrder, (s, n) => s.SortOrder = n)) return false;
+
+        await _context.SaveChangesAsync(cancellationToken);
+        await _activityLogger.LogAsync("SKILL_REORDER", "Skill", "-", "Changed the skills order.");
+        await _cacheStore.EvictByTagAsync("skills", cancellationToken);
         return true;
     }
 }

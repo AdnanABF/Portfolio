@@ -1,3 +1,4 @@
+using Portfolio.API.Features.Homepage;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.EntityFrameworkCore;
 using Portfolio.API.Core.Data;
@@ -21,10 +22,11 @@ public class ExperienceService : IExperienceService
         _cacheStore = cacheStore;
     }
 
-    public async Task<List<ExperienceDto>> GetAllExperiencesAsync(CancellationToken cancellationToken = default)
+    public async Task<List<ExperienceDto>> GetAllExperiencesAsync(bool includeHidden = false, CancellationToken cancellationToken = default)
     {
         return await _context.Experiences
             .AsNoTracking()
+            .Where(e => includeHidden || e.IsVisible)
             .OrderBy(e => e.SortOrder)
             .Select(e => e.ToDto())
             .ToListAsync(cancellationToken);
@@ -67,6 +69,17 @@ public class ExperienceService : IExperienceService
         await _activityLogger.LogAsync("EXPERIENCE_DELETE", "Experience", id.ToString(), $"Deleted experience: {experience.Role} at {experience.Company}");
         await _cacheStore.EvictByTagAsync("experience", cancellationToken);
 
+        return true;
+    }
+
+    public async Task<bool> ReorderExperiencesAsync(IReadOnlyList<Guid> orderedIds, CancellationToken cancellationToken = default)
+    {
+        var items = await _context.Experiences.ToListAsync(cancellationToken);
+        if (!ReorderHelper.Apply(items, orderedIds, e => e.Id, e => e.SortOrder, (e, n) => e.SortOrder = n)) return false;
+
+        await _context.SaveChangesAsync(cancellationToken);
+        await _activityLogger.LogAsync("EXPERIENCE_REORDER", "Experience", "-", "Changed the experience order.");
+        await _cacheStore.EvictByTagAsync("experience", cancellationToken);
         return true;
     }
 }

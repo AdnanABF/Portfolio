@@ -1,47 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Reveal } from "@/components/effects/Reveal";
 import { StackCell } from "@/components/bento/StackCell";
 import { FeaturedCell } from "@/components/bento/FeaturedCell";
-import { getProjects, getSkills } from "@/lib/api-client";
-import type { ProjectItem, Skill } from "@/lib/types";
+import { useSiteContent, useSiteLists } from "@/components/site/SiteContentProvider";
 
 export function BentoSecondaryRow() {
-  const [skills, setSkills] = useState<Skill[]>([]);
-  const [featuredProject, setFeaturedProject] = useState<ProjectItem | null>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const { coreStack } = useSiteContent();
+  const { projects } = useSiteLists();
+  const featuredProject = projects.find((p) => p.isPrivate === false) || projects[0] || null;
 
-  useEffect(() => {
-    let isMounted = true;
-    Promise.all([getSkills(), getProjects()]).then(([allSkills, allProjects]) => {
-      if (!isMounted) return;
-      setSkills(allSkills);
-      const featured = allProjects.find((p) => p.isPrivate === false) || allProjects[0] || null;
-      setFeaturedProject(featured);
-      setIsLoaded(true);
-    });
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  if (!isLoaded) return null;
-
-  const hasSkills = skills.length > 0;
+  const hasStack = coreStack.length > 0;
   const hasProject = !!featuredProject;
-
-  if (!hasSkills && !hasProject) return null;
+  if (!hasStack && !hasProject) return null;
 
   return (
     <>
-      {hasSkills && (
+      {hasStack && (
         <Reveal className={hasProject ? "md:col-span-7" : "md:col-span-12"} delay={200}>
-          <StackCell initialSkills={skills} />
+          <StackCell />
         </Reveal>
       )}
       {hasProject && (
-        <Reveal className={hasSkills ? "md:col-span-5" : "md:col-span-12"} delay={250}>
+        <Reveal className={hasStack ? "md:col-span-5" : "md:col-span-12"} delay={250}>
           <FeaturedCell initialProject={featuredProject} />
         </Reveal>
       )}

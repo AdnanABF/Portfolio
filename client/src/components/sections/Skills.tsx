@@ -1,193 +1,183 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Edit2, Plus, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
 import { Reveal } from "@/components/effects/Reveal";
-import { Card } from "@/components/ui/Card";
-import { SectionHeading } from "@/components/ui/SectionHeading";
-import { useAdmin } from "@/components/admin/AdminContext";
-import { deleteSkill, getSkills } from "@/lib/api-client";
+import { Badge } from "@/components/ui/Badge";
+import { useSiteContent, useSiteLists } from "@/components/site/SiteContentProvider";
+import { sectionOf } from "@/lib/homepage";
 import type { Skill } from "@/lib/types";
+import { SectionHead } from "./SectionHead";
 
-const DEFAULT_CATEGORIES: Array<"Modern" | "Microsoft" | "Tools" | "Legacy"> = [
-  "Modern",
-  "Microsoft",
-  "Tools",
-  "Legacy",
-];
+const BADGE_COLORS: Array<"yellow" | "mint" | "violet" | "coral" | "sky"> = ["sky", "mint", "yellow", "coral", "violet"];
 
-export function Skills({ initialSkills }: { initialSkills?: Skill[] }) {
-  const { isEditMode, openEditor } = useAdmin();
-  const [items, setItems] = useState<Skill[]>(initialSkills || []);
+/** The first categories (in the order set in the admin hub) are drawn as the layers of the stack; the rest go in the side panel. */
+const STACK_LAYERS = 6;
 
-  useEffect(() => {
-    if (initialSkills && initialSkills.length > 0) return;
-    let isMounted = true;
-    getSkills().then((data) => {
-      if (isMounted) {
-        setItems(data);
-      }
-    });
-    return () => {
-      isMounted = false;
-    };
-  }, [initialSkills]);
+type Group = { category: string; skills: Skill[]; index: number };
 
-  if (items.length === 0 && !isEditMode) {
-    return null;
-  }
+/**
+ * Skills drawn as a map of a system: each category is a layer, joined to the next by a line with a small signal
+ * travelling down it, and the remaining categories sit in a side panel. The pills above highlight one category and
+ * dim the rest. Everything is visible at once, with no percentages. On phones the layers stack and the side panel
+ * moves below. The animation is off for visitors who prefer reduced motion.
+ */
+export function Skills() {
+  const content = useSiteContent();
+  const items = useSiteLists().skills;
+  const [active, setActive] = useState<string | null>(null);
 
-  const categories = Array.from(
-    new Set([...DEFAULT_CATEGORIES, ...items.map((s) => s.category)])
-  );
-
-  const handleAddSkill = (category: string) => {
-    openEditor(
-      "skill",
-      { category, level: 85, name: "" },
-      (saved) => {
-        setItems((prev) => {
-          const newSkill = saved as unknown as Skill;
-          const exists = prev.findIndex((s) => s.id && s.id === newSkill.id);
-          if (exists >= 0) {
-            const copy = [...prev];
-            copy[exists] = newSkill;
-            return copy;
-          }
-          return [...prev, newSkill];
-        });
-      }
-    );
-  };
-
-  const handleEditSkill = (skill: Skill) => {
-    openEditor(
-      "skill",
-      skill as unknown as Record<string, unknown>,
-      (saved) => {
-        setItems((prev) =>
-          prev.map((s) => ((s.id && s.id === skill.id) || s.name === skill.name ? (saved as unknown as Skill) : s))
-        );
-      }
-    );
-  };
-
-  const handleDeleteSkill = async (skill: Skill) => {
-    if (!confirm(`Delete skill "${skill.name}"?`)) return;
-    try {
-      if (skill.id) {
-        await deleteSkill(skill.id);
-      }
-      setItems((prev) => prev.filter((s) => s !== skill && s.id !== skill.id));
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Failed to delete skill.");
+  // Categories appear in the order their first skill appears.
+  const groups = useMemo<Group[]>(() => {
+    const map = new Map<string, Skill[]>();
+    for (const skill of items) {
+      const list = map.get(skill.category) ?? [];
+      list.push(skill);
+      map.set(skill.category, list);
     }
-  };
+    return Array.from(map.entries()).map(([category, skills], index) => ({ category, skills, index }));
+  }, [items]);
+
+  if (items.length === 0) return null;
+
+  const stack = groups.slice(0, STACK_LAYERS);
+  const side = groups.slice(STACK_LAYERS);
+  const toggle = (category: string) => setActive((cur) => (cur === category ? null : category));
+  const dimmed = (category: string) => active !== null && active !== category;
 
   return (
-    <section
-      id="skills"
-      className="scroll-mt-24 bg-cream/50 px-6 py-20 md:px-12"
-    >
-      <div className="mx-auto max-w-7xl">
+    <section id="skills" className="scroll-mt-24 bg-cream/50 px-6 py-20 md:px-12">
+      <div className="mx-auto max-w-6xl">
         <Reveal>
-          <SectionHeading
-            eyebrow="// arsenal"
-            title={
-              <>
-                Tech <span className="text-primary">Arsenal</span>
-              </>
-            }
-            description="A hybrid skillset combining enterprise-grade robustness with modern agility."
-          />
+          <SectionHead section={sectionOf(content, "skills")} />
         </Reveal>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {categories.map((category, catIndex) => {
-            const categorySkills = items.filter((s) => s.category === category);
+        {/* Category pills: pick one to light it up, pick it again (or "All") to clear */}
+        <Reveal>
+          <div className="mb-8 flex flex-wrap justify-center gap-2" role="group" aria-label="Highlight a skill category">
+            <PillButton pressed={active === null} onClick={() => setActive(null)}>
+              All <span className="opacity-70">{items.length}</span>
+            </PillButton>
+            {groups.map((g) => (
+              <PillButton key={g.category} pressed={active === g.category} onClick={() => toggle(g.category)}>
+                {g.category} <span className="opacity-70">{g.skills.length}</span>
+              </PillButton>
+            ))}
+          </div>
+        </Reveal>
 
-            return (
-              <Reveal key={category} delay={catIndex * 100}>
-                <Card className="h-full p-6">
-                  <div className="mb-6 flex items-center justify-between border-b border-line pb-3">
-                    <h3 className="text-xl font-bold text-foreground">
-                      <span className="mr-2 text-primary">/</span>
-                      {category}
-                    </h3>
+        <Reveal>
+          <div className={`grid gap-6 ${side.length > 0 ? "lg:grid-cols-[minmax(0,1fr)_17rem]" : ""}`}>
+            {/* The stack */}
+            <div>
+              {stack.map((g, i) => (
+                <div key={g.category}>
+                  <Layer group={g} dimmed={dimmed(g.category)} highlighted={active === g.category} onSelect={() => toggle(g.category)} />
+                  {i < stack.length - 1 ? <Connector /> : null}
+                </div>
+              ))}
+            </div>
 
-                    {isEditMode && (
-                      <button
-                        type="button"
-                        onClick={() => handleAddSkill(category)}
-                        className="inline-flex items-center gap-1 rounded-lg border border-line bg-surface-2 px-2.5 py-1 font-mono text-[11px] font-bold text-primary hover:bg-primary hover:text-white transition-all cursor-pointer shadow-[1px_1px_0px_var(--shadow-color)]"
-                      >
-                        <Plus className="h-3 w-3" />
-                        <span>Add Skill</span>
-                      </button>
-                    )}
-                  </div>
-
-                  {categorySkills.length === 0 ? (
-                    <div className="py-6 text-center font-mono text-xs text-muted">
-                      No skills added in this category yet.
-                    </div>
-                  ) : (
-                    <ul className="space-y-4">
-                      {categorySkills.map((skill) => (
-                        <li key={skill.id || skill.name} className="group relative">
-                          <div className="mb-1.5 flex items-baseline justify-between gap-2">
-                            <span className="font-mono text-sm text-foreground">
-                              {skill.name}
-                            </span>
-                            <div className="flex items-center gap-2">
-                              {isEditMode && (
-                                <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleEditSkill(skill)}
-                                    title="Edit Skill"
-                                    className="rounded p-1 text-muted hover:bg-cream hover:text-primary transition-colors cursor-pointer"
-                                  >
-                                    <Edit2 className="h-3 w-3" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteSkill(skill)}
-                                    title="Delete Skill"
-                                    className="rounded p-1 text-muted hover:bg-accent-coral/10 hover:text-accent-coral transition-colors cursor-pointer"
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                  </button>
-                                </div>
-                              )}
-                              <span className="font-mono text-xs text-muted">
-                                {skill.level}%
-                              </span>
-                            </div>
-                          </div>
-                          <div
-                            role="progressbar"
-                            aria-valuenow={skill.level}
-                            aria-valuemin={0}
-                            aria-valuemax={100}
-                            aria-label={`${skill.name} proficiency`}
-                            className="h-1.5 overflow-hidden rounded-full bg-line/60"
-                          >
-                            <div
-                              className="h-full rounded-full bg-gradient-to-r from-primary to-secondary transition-all duration-300"
-                              style={{ width: `${skill.level}%` }}
-                            />
-                          </div>
-                        </li>
+            {/* The side panel */}
+            {side.length > 0 ? (
+              <aside className="h-fit space-y-5 rounded-2xl border-2 border-dashed border-line bg-surface/60 p-5" aria-label="Supporting skills">
+                {side.map((g) => (
+                  <div
+                    key={g.category}
+                    className={`transition-opacity duration-300 ${dimmed(g.category) ? "opacity-30" : "opacity-100"}`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => toggle(g.category)}
+                      aria-pressed={active === g.category}
+                      className="mb-2 flex w-full cursor-pointer items-center gap-2 text-left font-mono text-xs font-bold text-muted transition-colors hover:text-primary"
+                    >
+                      <span className={`h-2 w-2 rounded-full ${active === g.category ? "bg-primary" : "bg-line"}`} aria-hidden="true" />
+                      {g.category}
+                    </button>
+                    <ul className="flex flex-wrap gap-1.5">
+                      {g.skills.map((skill) => (
+                        <Chip key={skill.id ?? skill.name} color={BADGE_COLORS[g.index % BADGE_COLORS.length]}>
+                          {skill.name}
+                        </Chip>
                       ))}
                     </ul>
-                  )}
-                </Card>
-              </Reveal>
-            );
-          })}
-        </div>
+                  </div>
+                ))}
+              </aside>
+            ) : null}
+          </div>
+        </Reveal>
       </div>
     </section>
+  );
+}
+
+function PillButton({ pressed, onClick, children }: { pressed: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={pressed}
+      className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full border-2 border-line px-3 py-1 font-mono text-[11px] font-bold transition-all hover:-translate-y-px sm:text-xs ${
+        pressed
+          ? "bg-primary text-white shadow-[2px_2px_0px_var(--shadow-color)] dark:text-black"
+          : "bg-surface text-muted hover:text-foreground"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function Chip({ color, children }: { color: "yellow" | "mint" | "violet" | "coral" | "sky"; children: React.ReactNode }) {
+  return (
+    <li className="transition-transform duration-200 hover:-translate-y-0.5">
+      <Badge color={color}>{children}</Badge>
+    </li>
+  );
+}
+
+function Layer({ group, dimmed, highlighted, onSelect }: { group: Group; dimmed: boolean; highlighted: boolean; onSelect: () => void }) {
+  const color = BADGE_COLORS[group.index % BADGE_COLORS.length];
+  return (
+    <div
+      className={`grid gap-3 rounded-2xl border-2 bg-surface p-4 transition-all duration-300 sm:grid-cols-[9.5rem_minmax(0,1fr)] sm:items-center sm:gap-5 sm:p-5 ${
+        highlighted
+          ? "border-primary shadow-[5px_5px_0px_var(--shadow-color)]"
+          : "border-line shadow-[3px_3px_0px_var(--shadow-color)]"
+      } ${dimmed ? "opacity-30" : "opacity-100"}`}
+    >
+      <button
+        type="button"
+        onClick={onSelect}
+        aria-pressed={highlighted}
+        className="flex cursor-pointer items-center gap-3 text-left"
+      >
+        <span
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border-2 border-line font-mono text-xs font-black ${
+            highlighted ? "bg-primary text-white dark:text-black" : "bg-surface-2 text-primary"
+          }`}
+        >
+          {String(group.index + 1).padStart(2, "0")}
+        </span>
+        <span className="font-mono text-sm leading-tight font-bold text-foreground">{group.category}</span>
+      </button>
+      <ul className="flex flex-wrap gap-2">
+        {group.skills.map((skill) => (
+          <Chip key={skill.id ?? skill.name} color={color}>
+            {skill.name}
+          </Chip>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** The line between two layers, with a small signal dot travelling down it. */
+function Connector() {
+  return (
+    <div className="relative mx-auto h-6 w-0 border-l-2 border-dashed border-line" aria-hidden="true">
+      <span className="skills-signal absolute -left-[5px] h-2 w-2 rounded-full bg-primary" />
+    </div>
   );
 }

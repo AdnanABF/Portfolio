@@ -1,3 +1,4 @@
+using Portfolio.API.Features.Homepage;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.EntityFrameworkCore;
 using Portfolio.API.Core.Data;
@@ -87,6 +88,17 @@ public class ProjectService : IProjectService
         await _activityLogger.LogAsync("PROJECT_DELETE", "Project", id.ToString(), $"Deleted project: {project.Title}");
         await _cacheStore.EvictByTagAsync("projects", cancellationToken);
 
+        return true;
+    }
+
+    public async Task<bool> ReorderProjectsAsync(IReadOnlyList<Guid> orderedIds, CancellationToken cancellationToken = default)
+    {
+        var projects = await _context.Projects.ToListAsync(cancellationToken);
+        if (!ReorderHelper.Apply(projects, orderedIds, p => p.Id, p => p.SortOrder, (p, n) => p.SortOrder = n)) return false;
+
+        await _context.SaveChangesAsync(cancellationToken);
+        await _activityLogger.LogAsync("PROJECT_REORDER", "Project", "-", "Changed the projects order.");
+        await _cacheStore.EvictByTagAsync("projects", cancellationToken);
         return true;
     }
 }

@@ -22,6 +22,8 @@ using Portfolio.API.Features.Projects;
 using Portfolio.API.Features.Settings;
 using Portfolio.API.Features.Skills;
 using Portfolio.API.Features.Telemetry;
+using Portfolio.API.Features.Credentials;
+using Portfolio.API.Features.Homepage;
 using Portfolio.API.Features.Users;
 using Portfolio.API.Infrastructure.Caching;
 using Portfolio.API.Infrastructure.Email;
@@ -281,6 +283,10 @@ builder.Services.AddOutputCache(options =>
     // bypass the cache so draft responses can never be served to the public.
     options.AddPolicy("projects", b => b.AddPolicy<PublicOnlyCachePolicy>().Tag("projects"));
     options.AddPolicy("blog", b => b.AddPolicy<PublicOnlyCachePolicy>().Tag("blog"));
+    options.AddPolicy("skills", b => b.AddPolicy<PublicOnlyCachePolicy>().Tag("skills"));
+    options.AddPolicy("experience", b => b.AddPolicy<PublicOnlyCachePolicy>().Tag("experience"));
+    options.AddPolicy("education", b => b.AddPolicy<PublicOnlyCachePolicy>().Tag("education"));
+    options.AddPolicy("certifications", b => b.AddPolicy<PublicOnlyCachePolicy>().Tag("certifications"));
 });
 
 // 12. FluentValidation
@@ -308,6 +314,8 @@ builder.Services.AddScoped<IExperienceService, ExperienceService>();
 builder.Services.AddScoped<ISkillsService, SkillsService>();
 builder.Services.AddScoped<IBlogService, BlogService>();
 builder.Services.AddScoped<ISettingsService, SettingsService>();
+builder.Services.AddScoped<ISiteContentService, SiteContentService>();
+builder.Services.AddScoped<ICredentialsService, CredentialsService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IUserAdminService, UserAdminService>();

@@ -12,7 +12,8 @@ public static class SkillMappingExtensions
             Category = skill.Category,
             Name = skill.Name,
             IconName = skill.IconName,
-            SortOrder = skill.SortOrder
+            SortOrder = skill.SortOrder,
+            IsVisible = skill.IsVisible
         };
     }
 
@@ -23,7 +24,8 @@ public static class SkillMappingExtensions
             Category = dto.Category,
             Name = dto.Name,
             IconName = dto.IconName,
-            SortOrder = dto.SortOrder
+            SortOrder = dto.SortOrder,
+            IsVisible = dto.IsVisible
         };
     }
 
@@ -33,5 +35,6 @@ public static class SkillMappingExtensions
         skill.Name = dto.Name;
         skill.IconName = dto.IconName;
         skill.SortOrder = dto.SortOrder;
+        skill.IsVisible = dto.IsVisible;
     }
 }

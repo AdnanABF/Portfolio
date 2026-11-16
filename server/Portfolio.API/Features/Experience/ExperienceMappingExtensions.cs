@@ -14,7 +14,8 @@ public static class ExperienceMappingExtensions
             Location = exp.Location,
             Period = exp.Period,
             Achievements = exp.Achievements,
-            SortOrder = exp.SortOrder
+            SortOrder = exp.SortOrder,
+            IsVisible = exp.IsVisible
         };
     }
 
@@ -28,6 +29,7 @@ public static class ExperienceMappingExtensions
             Period = dto.Period,
             Achievements = dto.Achievements,
             SortOrder = dto.SortOrder,
+            IsVisible = dto.IsVisible,
             CreatedAt = DateTime.UtcNow
         };
     }
@@ -40,5 +42,6 @@ public static class ExperienceMappingExtensions
         exp.Period = dto.Period;
         exp.Achievements = dto.Achievements;
         exp.SortOrder = dto.SortOrder;
+        exp.IsVisible = dto.IsVisible;
     }
 }

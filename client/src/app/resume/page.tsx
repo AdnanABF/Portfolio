@@ -3,14 +3,16 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Download, Mail, MapPin, Printer } from "lucide-react";
-import { getExperience, getSettings, getSkills, trackCvDownload } from "@/lib/api-client";
+import { useSiteContent } from "@/components/site/SiteContentProvider";
+import { getExperience, getSkills, trackCvDownload } from "@/lib/api-client";
 import { Button } from "@/components/ui/Button";
 import type { ExperienceItem, Skill } from "@/lib/types";
 
 export default function ResumePage() {
   const [experience, setExperience] = useState<ExperienceItem[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
-  const [cvUrl, setCvUrl] = useState<string>("");
+  const { profile, links, location } = useSiteContent();
+  const cvUrl = profile.cvUrl;
 
   useEffect(() => {
     let isMounted = true;
@@ -19,17 +21,6 @@ export default function ResumePage() {
     });
     getSkills().then((data) => {
       if (isMounted) setSkills(data);
-    });
-    getSettings().then((settings) => {
-      if (!isMounted) return;
-      if (settings.hero_photo_cv) {
-        try {
-          const parsed = JSON.parse(settings.hero_photo_cv);
-          if (parsed.cvUrl) setCvUrl(parsed.cvUrl);
-        } catch {
-          // ignore
-        }
-      }
     });
     return () => {
       isMounted = false;
@@ -77,29 +68,23 @@ export default function ResumePage() {
           {/* Header */}
           <div className="border-b-2 border-line pb-8">
             <h1 className="text-3xl sm:text-4xl font-extrabold text-foreground">
-              Adnan Bin Farook
+              {profile.name}
             </h1>
-            <p className="mt-1 font-mono text-base font-bold text-primary">
-              Senior Software Engineer — .NET & Modern Web Architectures
-            </p>
+            <p className="mt-1 font-mono text-base font-bold text-primary">{profile.role}</p>
 
-            <div className="mt-4 flex flex-wrap gap-4 font-mono text-xs text-muted">
-              <span className="flex items-center gap-1">
-                <MapPin className="h-3.5 w-3.5 text-secondary" />
-                Malappuram, Kerala, India
-              </span>
-              <span className="flex items-center gap-1">
-                <Mail className="h-3.5 w-3.5 text-secondary" />
-                adnanabf@gmail.com
-              </span>
-              <span>•</span>
-              <a href="https://adnanbinfarook.com" className="hover:underline font-bold text-foreground">
-                adnanbinfarook.com
-              </a>
-              <span>•</span>
-              <a href="https://github.com/AdnanABF" className="hover:underline font-bold text-foreground">
-                github.com/AdnanABF
-              </a>
+            <div className="mt-4 flex flex-wrap items-center gap-4 font-mono text-xs text-muted">
+              {location.address ? (
+                <span className="flex items-center gap-1">
+                  <MapPin className="h-3.5 w-3.5 text-secondary" />
+                  {location.address}
+                </span>
+              ) : null}
+              {links.map((link) => (
+                <a key={link.id} href={link.url} className="flex items-center gap-1 hover:underline font-bold text-foreground">
+                  {link.kind === "email" ? <Mail className="h-3.5 w-3.5 text-secondary" /> : null}
+                  {link.url.replace(/^(mailto:|tel:|https?:\/\/)/i, "").replace(/\/$/, "")}
+                </a>
+              ))}
             </div>
           </div>
 
@@ -109,7 +94,7 @@ export default function ResumePage() {
               {"// Professional Summary"}
             </h2>
             <p className="mt-2 text-sm text-foreground/90 leading-relaxed">
-              Software Engineer with extensive experience designing and deploying high-performance distributed systems, ASP.NET Core web applications, and modern React interfaces. Specializes in scalable architecture, clean code principles, database performance optimization, and containerized cloud delivery.
+              {profile.subtitle}
             </p>
           </div>
 

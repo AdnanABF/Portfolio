@@ -1,6 +1,14 @@
+import type { HomepageAdminState, HomepageContent } from "./homepage";
 import type {
   ActivityLogPage,
   ActivityLogQuery,
+  AdminCertification,
+  AdminEducation,
+  AdminExperience,
+  AdminProject,
+  AdminSkill,
+  CertificationItem,
+  EducationItem,
   ExperienceItem,
   InquiryPage,
   InquiryQuery,
@@ -106,8 +114,9 @@ function safeFetch(url: string, init?: RequestInit, timeoutMs = 3000): Promise<R
 // Public Content Methods (Dynamic Backend API)
 // ==========================================
 
-interface ApiProject {
+export interface ApiProject {
   id: string;
+  contentMarkdown?: string;
   slug: string;
   title: string;
   description: string;
@@ -126,19 +135,85 @@ interface ApiPost {
   publishedAt?: string;
 }
 
-interface ApiExperience {
+export interface ApiExperience {
   id: string;
   role: string;
   company: string;
+  location?: string;
   period: string;
   achievements?: string[];
 }
 
-interface ApiSkill {
+export interface ApiSkill {
   id?: string;
   name: string;
   category: string;
 }
+
+// The API's lists as the page uses them. Shared with the server-side loader (lib/site-content.ts).
+export const mapProjects = (data: ApiProject[]): ProjectItem[] =>
+  data.map((p) => ({
+    id: p.id,
+    slug: p.slug,
+    title: p.title,
+    description: p.description,
+    techStack: p.tags || [],
+    githubUrl: p.githubUrl,
+    liveUrl: p.liveUrl,
+    imageUrl: p.heroImageUrl || "",
+    isPrivate: p.isRepoPrivate ?? false,
+    isPublished: p.isPublished ?? true,
+    badge: p.contentMarkdown?.match(/^\*\*(.+?)\*\*/)?.[1],
+  }));
+
+export const mapExperience = (data: ApiExperience[]): ExperienceItem[] =>
+  data.map((e) => ({
+    id: e.id,
+    role: e.role,
+    company: e.company,
+    period: e.period,
+    location: e.location,
+    description: e.achievements || [],
+    tech: [],
+  }));
+
+export interface ApiEducation {
+  id: string;
+  institution: string;
+  qualification: string;
+  location?: string;
+  period?: string;
+  details?: string[];
+}
+
+export interface ApiCertification {
+  id: string;
+  title: string;
+  issuer?: string;
+  issuedOn?: string;
+  credentialUrl?: string;
+}
+
+export const mapEducation = (data: ApiEducation[]): EducationItem[] =>
+  data.map((e) => ({
+    id: e.id,
+    institution: e.institution,
+    qualification: e.qualification,
+    location: e.location ?? "",
+    period: e.period ?? "",
+    details: e.details ?? [],
+  }));
+
+export const mapCertifications = (data: ApiCertification[]): CertificationItem[] =>
+  data.map((c) => ({
+    id: c.id,
+    title: c.title,
+    issuer: c.issuer ?? "",
+    issuedOn: c.issuedOn ?? "",
+    credentialUrl: c.credentialUrl ?? "",
+  }));
+
+export const mapSkills = (data: ApiSkill[]): Skill[] => data.map((s) => ({ id: s.id, name: s.name, category: s.category }));
 
 export async function getProjects(): Promise<ProjectItem[]> {
   try {
@@ -146,19 +221,7 @@ export async function getProjects(): Promise<ProjectItem[]> {
       next: { revalidate: 60 },
     });
     if (!res.ok) return [];
-    const data: ApiProject[] = await res.json();
-    return data.map((p) => ({
-      id: p.id,
-      slug: p.slug,
-      title: p.title,
-      description: p.description,
-      techStack: p.tags || [],
-      githubUrl: p.githubUrl,
-      liveUrl: p.liveUrl,
-      imageUrl: p.heroImageUrl || "/og-image.png",
-      isPrivate: p.isRepoPrivate ?? false,
-      isPublished: p.isPublished ?? true,
-    }));
+    return mapProjects(await res.json());
   } catch {
     return [];
   }
@@ -179,7 +242,7 @@ export async function getProject(slug: string): Promise<ProjectItem | undefined>
       techStack: p.tags || [],
       githubUrl: p.githubUrl,
       liveUrl: p.liveUrl,
-      imageUrl: p.heroImageUrl || "/og-image.png",
+      imageUrl: p.heroImageUrl || "",
       isPrivate: p.isRepoPrivate ?? false,
       isPublished: p.isPublished ?? true,
     };
@@ -212,15 +275,7 @@ export async function getExperience(): Promise<ExperienceItem[]> {
       next: { revalidate: 60 },
     });
     if (!res.ok) return [];
-    const data: ApiExperience[] = await res.json();
-    return data.map((e) => ({
-      id: e.id,
-      role: e.role,
-      company: e.company,
-      period: e.period,
-      description: e.achievements || [],
-      tech: [],
-    }));
+    return mapExperience(await res.json());
   } catch {
     return [];
   }
@@ -232,39 +287,9 @@ export async function getSkills(): Promise<Skill[]> {
       next: { revalidate: 60 },
     });
     if (!res.ok) return [];
-    const data: ApiSkill[] = await res.json();
-    return data.map((s) => {
-      const validCategories: Array<"Modern" | "Microsoft" | "Legacy" | "Tools"> = [
-        "Modern",
-        "Microsoft",
-        "Legacy",
-        "Tools",
-      ];
-      const category = validCategories.find(
-        (c) => c.toLowerCase() === s.category.toLowerCase()
-      ) || "Modern";
-
-      return {
-        id: s.id,
-        name: s.name,
-        category,
-        level: 80,
-      };
-    });
+    return mapSkills(await res.json());
   } catch {
     return [];
-  }
-}
-
-export async function getSettings(): Promise<Record<string, string>> {
-  try {
-    const res = await safeFetch(resolveUrl("/api/settings"), {
-      next: { revalidate: 60 },
-    });
-    if (!res.ok) return {};
-    return await res.json();
-  } catch {
-    return {};
   }
 }
 
@@ -356,91 +381,92 @@ export async function getMe() {
   }
 }
 
-export async function createProject(dto: Record<string, unknown>) {
-  const res = await fetch(resolveUrl("/api/projects"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify(dto),
-  });
-  if (!res.ok) throw new Error("Failed to create project.");
-  return await res.json();
-}
+// ==========================================
+// Home page admin: content, projects, experience and skills
+// ==========================================
 
-export async function updateProject(id: string, dto: Record<string, unknown>) {
-  const res = await fetch(resolveUrl(`/api/projects/${id}`), {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify(dto),
-  });
-  if (!res.ok) throw new Error("Failed to update project.");
-  return await res.json();
-}
+export const getHomepageAdmin = () =>
+  sendJson<HomepageAdminState>("/api/admin/site-content", "GET", undefined, "Could not load the home page content.");
 
-export async function updateSetting(key: string, value: string) {
-  const res = await fetch(resolveUrl(`/api/settings/${key}`), {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify({ value }),
-  });
-  if (!res.ok) throw new Error(`Failed to update setting ${key}.`);
-  return await res.json();
-}
+export const saveHomepageDraft = (content: HomepageContent) =>
+  sendJson<HomepageAdminState>("/api/admin/site-content", "PUT", content, "Could not save the draft.");
 
-export async function createExperience(dto: Record<string, unknown>) {
-  const res = await fetch(resolveUrl("/api/experience"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify(dto),
-  });
-  if (!res.ok) throw new Error("Failed to create experience.");
-  return await res.json();
-}
+export const publishHomepage = () =>
+  sendJson<HomepageAdminState>("/api/admin/site-content/publish", "POST", undefined, "Could not publish the home page.");
 
-export async function updateExperience(id: string, dto: Record<string, unknown>) {
-  const res = await fetch(resolveUrl(`/api/experience/${id}`), {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify(dto),
-  });
-  if (!res.ok) throw new Error("Failed to update experience.");
-  return await res.json();
-}
+export const discardHomepageDraft = () =>
+  sendJson<HomepageAdminState>("/api/admin/site-content/discard", "POST", undefined, "Could not discard the draft.");
 
-export async function createSkill(dto: { name: string; category: string; iconName?: string; sortOrder?: number }) {
-  const res = await fetch(resolveUrl("/api/skills"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify(dto),
-  });
-  if (!res.ok) throw new Error("Failed to create skill.");
-  return await res.json();
-}
+/** The lists include hidden items (and unpublished projects) because only admins may ask for them. */
+export const getAdminProjects = () =>
+  sendJson<AdminProject[]>("/api/projects?includeDrafts=true", "GET", undefined, "Could not load the projects.");
 
-export async function updateSkill(id: string, dto: { name: string; category: string; iconName?: string; sortOrder?: number }) {
-  const res = await fetch(resolveUrl(`/api/skills/${id}`), {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify(dto),
-  });
-  if (!res.ok) throw new Error("Failed to update skill.");
-  return await res.json();
-}
+export const saveProject = (id: string | null, dto: Omit<AdminProject, "id" | "updatedAt">) =>
+  id
+    ? sendJson<AdminProject>(`/api/projects/${id}`, "PUT", dto, "Could not save the project.")
+    : sendJson<AdminProject>("/api/projects", "POST", dto, "Could not create the project.");
 
-export async function deleteSkill(id: string) {
-  const res = await fetch(resolveUrl(`/api/skills/${id}`), {
-    method: "DELETE",
-    credentials: "include",
-  });
-  if (!res.ok) throw new Error("Failed to delete skill.");
-  return true;
-}
+export const deleteProject = (id: string) =>
+  sendJson<void>(`/api/projects/${id}`, "DELETE", undefined, "Could not delete the project.");
+
+export const reorderProjects = (ids: string[]) =>
+  sendJson<void>("/api/projects/order", "PUT", { ids }, "Could not save the new order.");
+
+export const getAdminExperience = () =>
+  sendJson<AdminExperience[]>("/api/experience?includeHidden=true", "GET", undefined, "Could not load the experience.");
+
+export const saveExperience = (id: string | null, dto: Omit<AdminExperience, "id">) =>
+  id
+    ? sendJson<AdminExperience>(`/api/experience/${id}`, "PUT", dto, "Could not save the experience entry.")
+    : sendJson<AdminExperience>("/api/experience", "POST", dto, "Could not create the experience entry.");
+
+export const deleteExperience = (id: string) =>
+  sendJson<void>(`/api/experience/${id}`, "DELETE", undefined, "Could not delete the experience entry.");
+
+export const reorderExperience = (ids: string[]) =>
+  sendJson<void>("/api/experience/order", "PUT", { ids }, "Could not save the new order.");
+
+export const getAdminEducation = () =>
+  sendJson<AdminEducation[]>("/api/education?includeHidden=true", "GET", undefined, "Could not load the education entries.");
+
+export const saveEducation = (id: string | null, dto: Omit<AdminEducation, "id">) =>
+  id
+    ? sendJson<AdminEducation>(`/api/education/${id}`, "PUT", dto, "Could not save the education entry.")
+    : sendJson<AdminEducation>("/api/education", "POST", dto, "Could not create the education entry.");
+
+export const deleteEducation = (id: string) =>
+  sendJson<void>(`/api/education/${id}`, "DELETE", undefined, "Could not delete the education entry.");
+
+export const reorderEducation = (ids: string[]) =>
+  sendJson<void>("/api/education/order", "PUT", { ids }, "Could not save the new order.");
+
+export const getAdminCertifications = () =>
+  sendJson<AdminCertification[]>("/api/certifications?includeHidden=true", "GET", undefined, "Could not load the certifications.");
+
+export const saveCertification = (id: string | null, dto: Omit<AdminCertification, "id">) =>
+  id
+    ? sendJson<AdminCertification>(`/api/certifications/${id}`, "PUT", dto, "Could not save the certification.")
+    : sendJson<AdminCertification>("/api/certifications", "POST", dto, "Could not create the certification.");
+
+export const deleteCertification = (id: string) =>
+  sendJson<void>(`/api/certifications/${id}`, "DELETE", undefined, "Could not delete the certification.");
+
+export const reorderCertifications = (ids: string[]) =>
+  sendJson<void>("/api/certifications/order", "PUT", { ids }, "Could not save the new order.");
+
+export const getAdminSkills = () =>
+  sendJson<AdminSkill[]>("/api/skills?includeHidden=true", "GET", undefined, "Could not load the skills.");
+
+export const saveSkill = (id: string | null, dto: Omit<AdminSkill, "id">) =>
+  id
+    ? sendJson<AdminSkill>(`/api/skills/${id}`, "PUT", dto, "Could not save the skill.")
+    : sendJson<AdminSkill>("/api/skills", "POST", dto, "Could not create the skill.");
+
+export const deleteSkill = (id: string) =>
+  sendJson<void>(`/api/skills/${id}`, "DELETE", undefined, "Could not delete the skill.");
+
+export const reorderSkills = (ids: string[]) =>
+  sendJson<void>("/api/skills/order", "PUT", { ids }, "Could not save the new order.");
 
 export interface UploadMediaResponse {
   id: string;

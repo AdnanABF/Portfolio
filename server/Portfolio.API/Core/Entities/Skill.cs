@@ -17,4 +17,7 @@ public class Skill
     public string? IconName { get; set; }
 
     public int SortOrder { get; set; } = 0;
+
+    /// <summary>Hidden items stay in the admin hub but are not shown on the public site.</summary>
+    public bool IsVisible { get; set; } = true;
 }
