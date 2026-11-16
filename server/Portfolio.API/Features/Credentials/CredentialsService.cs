@@ -1,3 +1,4 @@
+using Portfolio.API.Features.Homepage;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.EntityFrameworkCore;
 using Portfolio.API.Core.Data;
@@ -104,12 +105,8 @@ public class CredentialsService : ICredentialsService
 
     public async Task<bool> ReorderEducationAsync(IReadOnlyList<Guid> orderedIds, CancellationToken cancellationToken = default)
     {
-        var items = await _context.Educations.Where(e => orderedIds.Contains(e.Id)).ToListAsync(cancellationToken);
-        if (items.Count != orderedIds.Distinct().Count()) return false;
-
-        for (var i = 0; i < orderedIds.Count; i++) items.First(e => e.Id == orderedIds[i]).SortOrder = i;
-
-        await _context.SaveChangesAsync(cancellationToken);
+        var items = await _context.Educations.ToListAsync(cancellationToken);
+        if (!ReorderHelper.Apply(items, orderedIds, e => e.Id, e => e.SortOrder, (e, n) => e.SortOrder = n)) return false;await _context.SaveChangesAsync(cancellationToken);
         await _activityLogger.LogAsync("EDUCATION_REORDER", "Education", "-", "Changed the education order.");
         await _cacheStore.EvictByTagAsync(EducationTag, cancellationToken);
         return true;
@@ -180,12 +177,8 @@ public class CredentialsService : ICredentialsService
 
     public async Task<bool> ReorderCertificationsAsync(IReadOnlyList<Guid> orderedIds, CancellationToken cancellationToken = default)
     {
-        var items = await _context.Certifications.Where(c => orderedIds.Contains(c.Id)).ToListAsync(cancellationToken);
-        if (items.Count != orderedIds.Distinct().Count()) return false;
-
-        for (var i = 0; i < orderedIds.Count; i++) items.First(c => c.Id == orderedIds[i]).SortOrder = i;
-
-        await _context.SaveChangesAsync(cancellationToken);
+        var items = await _context.Certifications.ToListAsync(cancellationToken);
+        if (!ReorderHelper.Apply(items, orderedIds, c => c.Id, c => c.SortOrder, (c, n) => c.SortOrder = n)) return false;await _context.SaveChangesAsync(cancellationToken);
         await _activityLogger.LogAsync("CERTIFICATION_REORDER", "Certification", "-", "Changed the certifications order.");
         await _cacheStore.EvictByTagAsync(CertificationsTag, cancellationToken);
         return true;

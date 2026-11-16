@@ -1,3 +1,4 @@
+using Portfolio.API.Features.Homepage;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.EntityFrameworkCore;
 using Portfolio.API.Core.Data;
@@ -73,13 +74,8 @@ public class ExperienceService : IExperienceService
 
     public async Task<bool> ReorderExperiencesAsync(IReadOnlyList<Guid> orderedIds, CancellationToken cancellationToken = default)
     {
-        var items = await _context.Experiences.Where(e => orderedIds.Contains(e.Id)).ToListAsync(cancellationToken);
-        if (items.Count != orderedIds.Distinct().Count()) return false;
-
-        for (var i = 0; i < orderedIds.Count; i++)
-        {
-            items.First(e => e.Id == orderedIds[i]).SortOrder = i;
-        }
+        var items = await _context.Experiences.ToListAsync(cancellationToken);
+        if (!ReorderHelper.Apply(items, orderedIds, e => e.Id, e => e.SortOrder, (e, n) => e.SortOrder = n)) return false;
 
         await _context.SaveChangesAsync(cancellationToken);
         await _activityLogger.LogAsync("EXPERIENCE_REORDER", "Experience", "-", "Changed the experience order.");

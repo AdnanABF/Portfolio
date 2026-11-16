@@ -97,6 +97,7 @@ public class CvSeederTests : IClassFixture<CustomWebApplicationFactory>
         content.Profile.Name = "Old name";
         published.Json = SiteContentService.Serialize(content);
         (await db.SiteSettings.SingleAsync(s => s.Key == CvSeeder.VersionKey)).Value = "an-older-cv";
+        db.SiteSettings.RemoveRange(await db.SiteSettings.Where(s => s.Key == "bio").ToListAsync());
         db.SiteSettings.Add(new SiteSetting { Key = "bio", Value = "Old bio with the wrong city" });
         await db.SaveChangesAsync();
         var keptId = kept.Id;
@@ -105,10 +106,12 @@ public class CvSeederTests : IClassFixture<CustomWebApplicationFactory>
 
         Assert.DoesNotContain(await db.Skills.AsNoTracking().ToListAsync(), s => s.Name == "Old skill");
         Assert.DoesNotContain(await db.Experiences.AsNoTracking().ToListAsync(), e => e.Company == "Old Co");
-        Assert.DoesNotContain(await db.Projects.AsNoTracking().ToListAsync(), p => p.Slug == "old-project");
+        // A project the owner added is kept on a newer version (only a first seed or a forced replace removes others).
+        Assert.Contains(await db.Projects.AsNoTracking().ToListAsync(), p => p.Slug == "old-project");
         Assert.DoesNotContain(await db.Educations.AsNoTracking().ToListAsync(), e => e.Institution == "Old school");
         Assert.DoesNotContain(await db.Certifications.AsNoTracking().ToListAsync(), c => c.Title == "Old certificate");
-        Assert.DoesNotContain(await db.SiteSettings.AsNoTracking().ToListAsync(), s => s.Key == "bio");
+        // Settings other than the old editor's and the version marker are left alone.
+        Assert.Contains(await db.SiteSettings.AsNoTracking().ToListAsync(), s => s.Key == "bio");
 
         var project = await db.Projects.AsNoTracking().SingleAsync(p => p.Slug == "gramahub");
         Assert.Equal(keptId, project.Id);

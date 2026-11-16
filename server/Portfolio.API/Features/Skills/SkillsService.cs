@@ -1,3 +1,4 @@
+using Portfolio.API.Features.Homepage;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.EntityFrameworkCore;
 using Portfolio.API.Core.Data;
@@ -73,13 +74,8 @@ public class SkillsService : ISkillsService
 
     public async Task<bool> ReorderSkillsAsync(IReadOnlyList<Guid> orderedIds, CancellationToken cancellationToken = default)
     {
-        var skills = await _context.Skills.Where(s => orderedIds.Contains(s.Id)).ToListAsync(cancellationToken);
-        if (skills.Count != orderedIds.Distinct().Count()) return false;
-
-        for (var i = 0; i < orderedIds.Count; i++)
-        {
-            skills.First(s => s.Id == orderedIds[i]).SortOrder = i;
-        }
+        var skills = await _context.Skills.ToListAsync(cancellationToken);
+        if (!ReorderHelper.Apply(skills, orderedIds, s => s.Id, s => s.SortOrder, (s, n) => s.SortOrder = n)) return false;
 
         await _context.SaveChangesAsync(cancellationToken);
         await _activityLogger.LogAsync("SKILL_REORDER", "Skill", "-", "Changed the skills order.");

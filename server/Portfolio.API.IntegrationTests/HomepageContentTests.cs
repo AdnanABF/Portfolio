@@ -217,6 +217,42 @@ public class HomepageContentTests : IClassFixture<MembersFactory>, IAsyncLifetim
         Assert.Equal(HttpStatusCode.BadRequest, (await _factory.Admin.PutAsJsonAsync("/api/admin/site-content", content)).StatusCode);
     }
 
+    [Fact]
+    public async Task Links_And_Cards_Must_Have_Their_Own_Ids()
+    {
+        var links = WithHeadline("Dup links");
+        links.Links.Add(new LinkItem { Id = "same", Label = "A", Url = "https://example.com", Kind = "website" });
+        links.Links.Add(new LinkItem { Id = "same", Label = "B", Url = "https://example.org", Kind = "website" });
+        Assert.Equal(HttpStatusCode.BadRequest, (await _factory.Admin.PutAsJsonAsync("/api/admin/site-content", links)).StatusCode);
+
+        var cards = WithHeadline("Dup cards");
+        var card = cards.About.Cards[0];
+        cards.About.Cards.Add(new AboutCard { Id = card.Id, Title = "Copy", Text = "Text", Icon = card.Icon, Color = card.Color, Size = card.Size });
+        Assert.Equal(HttpStatusCode.BadRequest, (await _factory.Admin.PutAsJsonAsync("/api/admin/site-content", cards)).StatusCode);
+    }
+
+    [Fact]
+    public async Task Reordering_Some_Skills_Leaves_Every_Skill_With_A_Different_Position()
+    {
+        var a = await CreateSkillAsync($"A-{Guid.NewGuid():N}", true);
+        var b = await CreateSkillAsync($"B-{Guid.NewGuid():N}", true);
+        try
+        {
+            Assert.Equal(HttpStatusCode.NoContent, (await _factory.Admin.PutAsJsonAsync("/api/skills/order", new { ids = new[] { b } })).StatusCode);
+
+            var list = await _factory.Admin.GetFromJsonAsync<JsonElement>("/api/skills?includeHidden=true");
+            var orders = list.EnumerateArray().Select(e => e.GetProperty("sortOrder").GetInt32()).ToList();
+            Assert.Equal(orders.Count, orders.Distinct().Count());
+            var ids = list.EnumerateArray().Select(e => e.GetProperty("id").GetGuid()).ToList();
+            Assert.Equal(b, ids[0]);
+        }
+        finally
+        {
+            await _factory.Admin.DeleteAsync($"/api/skills/{a}");
+            await _factory.Admin.DeleteAsync($"/api/skills/{b}");
+        }
+    }
+
     // ---- skills and experience: hidden items and order ------------------------------------------
 
     private async Task<Guid> CreateSkillAsync(string name, bool visible)

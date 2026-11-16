@@ -1,22 +1,47 @@
 "use client";
 
-import { Menu, X } from "lucide-react";
+import { ChevronDown, Menu, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { UserMenu } from "@/components/site/UserMenu";
 import { LinkButton } from "@/components/ui/Button";
 import { useSiteContent } from "@/components/site/SiteContentProvider";
 
+/** Links shown directly in the desktop bar; the rest sit under "More" so the bar never gets crowded. */
+const DESKTOP_LINKS = 4;
+
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
   const [scrolled, setScrolled] = useState(false);
   const { profile, sections } = useSiteContent();
 
   // The links come straight from the home page content (the same list that orders the page), so they never
   // depend on any other request and cannot disappear because one failed.
-  const navItems = sections.filter((s) => s.enabled).map((s) => ({ label: s.label, href: `/#${s.id}` }));
+  const navItems = sections.filter((s) => s.enabled).map((s) => ({ id: s.id, label: s.label, href: `/#${s.id}` }));
+  // The "Hire Me" button already leads to the contact section, so the desktop bar leaves that link out.
+  const barItems = navItems.filter((item) => item.id !== "contact");
+  const shown = barItems.length > DESKTOP_LINKS + 1 ? barItems.slice(0, DESKTOP_LINKS) : barItems;
+  const more = barItems.slice(shown.length);
+
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onPointer = (e: MouseEvent) => {
+      if (!moreRef.current?.contains(e.target as Node)) setMoreOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMoreOpen(false);
+    };
+    document.addEventListener("mousedown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [moreOpen]);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -57,23 +82,51 @@ export function Navbar() {
         </Link>
 
         {/* Center: Desktop Nav (Pill Layout) */}
-        <div className="absolute top-1/2 left-1/2 hidden -translate-x-1/2 -translate-y-1/2 items-center md:flex">
+        <div className="absolute top-1/2 left-1/2 hidden -translate-x-1/2 -translate-y-1/2 items-center lg:flex">
           <div className="flex items-center gap-1 rounded-full border-2 border-line bg-surface/90 p-1.5 shadow-[3px_3px_0px_var(--shadow-color)] backdrop-blur-md">
-            {navItems.map((item) => (
+            {shown.map((item) => (
               <Link
-                key={item.label}
+                key={item.id}
                 href={item.href}
                 className="rounded-full px-4 py-1.5 text-sm font-semibold text-muted transition-all hover:bg-cream hover:text-foreground"
               >
                 {item.label}
               </Link>
             ))}
+            {more.length > 0 ? (
+              <div ref={moreRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setMoreOpen((v) => !v)}
+                  aria-expanded={moreOpen}
+                  aria-haspopup="true"
+                  className="flex cursor-pointer items-center gap-1 rounded-full px-4 py-1.5 text-sm font-semibold text-muted transition-all hover:bg-cream hover:text-foreground"
+                >
+                  More
+                  <ChevronDown size={14} className={`transition-transform duration-200 ${moreOpen ? "rotate-180" : ""}`} aria-hidden="true" />
+                </button>
+                {moreOpen ? (
+                  <div className="absolute top-full right-0 mt-3 min-w-44 rounded-2xl border-2 border-line bg-surface p-1.5 shadow-[3px_3px_0px_var(--shadow-color)]">
+                    {more.map((item) => (
+                      <Link
+                        key={item.id}
+                        href={item.href}
+                        onClick={() => setMoreOpen(false)}
+                        className="block rounded-xl px-4 py-2 text-sm font-semibold text-muted transition-all hover:bg-cream hover:text-foreground"
+                      >
+                        {item.label}
+                      </Link>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         </div>
 
         {/* Right: Hire Me + Theme + Mobile Toggle */}
         <div className="z-20 flex items-center gap-3">
-          <LinkButton href="/#contact" className="px-5 py-2 max-md:hidden">
+          <LinkButton href="/#contact" className="px-5 py-2 max-lg:hidden">
             {profile.hireMeLabel}
           </LinkButton>
           <ThemeToggle />
@@ -81,7 +134,7 @@ export function Navbar() {
 
           <button
             type="button"
-            className="rounded-lg p-2 text-muted transition-colors outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary md:hidden"
+            className="rounded-lg p-2 text-muted transition-colors outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary lg:hidden"
             onClick={() => setIsOpen(!isOpen)}
             aria-label={isOpen ? "Close navigation menu" : "Open navigation menu"}
             aria-expanded={isOpen}
@@ -95,14 +148,14 @@ export function Navbar() {
       {/* Mobile Nav */}
       <div
         id="mobile-navigation-menu"
-        className={`absolute top-20 left-0 w-full overflow-hidden border-b border-line bg-surface shadow-2xl transition-all duration-300 md:hidden ${
-          isOpen ? "max-h-[480px] opacity-100" : "max-h-0 border-b-0 opacity-0"
+        className={`absolute top-20 left-0 w-full border-b border-line bg-surface shadow-2xl transition-all duration-300 lg:hidden ${
+          isOpen ? "max-h-[calc(100vh_-_5rem)] overflow-y-auto opacity-100" : "max-h-0 border-b-0 opacity-0"
         }`}
       >
         <div className="flex flex-col gap-2 p-6">
           {navItems.map((item) => (
             <Link
-              key={item.label}
+              key={item.id}
               href={item.href}
               onClick={() => setIsOpen(false)}
               className="group flex items-center justify-between rounded-lg px-4 py-3 text-lg font-medium text-muted transition-all hover:bg-cream hover:text-primary"

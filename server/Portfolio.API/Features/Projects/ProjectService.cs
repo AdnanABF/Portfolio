@@ -1,3 +1,4 @@
+using Portfolio.API.Features.Homepage;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.EntityFrameworkCore;
 using Portfolio.API.Core.Data;
@@ -92,13 +93,8 @@ public class ProjectService : IProjectService
 
     public async Task<bool> ReorderProjectsAsync(IReadOnlyList<Guid> orderedIds, CancellationToken cancellationToken = default)
     {
-        var projects = await _context.Projects.Where(p => orderedIds.Contains(p.Id)).ToListAsync(cancellationToken);
-        if (projects.Count != orderedIds.Distinct().Count()) return false;
-
-        for (var i = 0; i < orderedIds.Count; i++)
-        {
-            projects.First(p => p.Id == orderedIds[i]).SortOrder = i;
-        }
+        var projects = await _context.Projects.ToListAsync(cancellationToken);
+        if (!ReorderHelper.Apply(projects, orderedIds, p => p.Id, p => p.SortOrder, (p, n) => p.SortOrder = n)) return false;
 
         await _context.SaveChangesAsync(cancellationToken);
         await _activityLogger.LogAsync("PROJECT_REORDER", "Project", "-", "Changed the projects order.");

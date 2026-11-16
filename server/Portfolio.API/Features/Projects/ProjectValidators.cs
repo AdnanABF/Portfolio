@@ -1,4 +1,5 @@
 using FluentValidation;
+using Portfolio.API.Features.Homepage;
 
 namespace Portfolio.API.Features.Projects;
 
@@ -17,5 +18,10 @@ public class ProjectUpsertValidator : AbstractValidator<ProjectUpsertDto>
 
         RuleFor(x => x.Tagline)
             .MaximumLength(300).WithMessage("Tagline must not exceed 300 characters.");
+
+        const string urlMessage = "Use a link that starts with https://, mailto:, tel: or /.";
+        RuleFor(x => x.HeroImageUrl).MaximumLength(500).Must(HomepageContentValidator.IsSafeUrl).WithMessage(urlMessage);
+        RuleFor(x => x.LiveUrl).MaximumLength(500).Must(HomepageContentValidator.IsSafeUrl).WithMessage(urlMessage);
+        RuleFor(x => x.GithubUrl).MaximumLength(500).Must(HomepageContentValidator.IsSafeUrl).WithMessage(urlMessage);
     }
 }

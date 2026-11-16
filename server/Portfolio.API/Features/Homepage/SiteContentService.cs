@@ -67,6 +67,9 @@ public class SiteContentService : ISiteContentService
     /// </summary>
     private static void AddMissingSections(HomepageContent content)
     {
+        // Only built when a section is actually missing, so the usual parse does not create the whole default content.
+        if (HomepageContentRules.SectionIds.All(id => content.Sections.Any(s => s.Id == id))) return;
+
         var starting = HomepageContentDefaults.Create().Sections;
         for (var i = 0; i < starting.Count; i++)
         {

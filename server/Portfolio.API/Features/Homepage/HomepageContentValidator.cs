@@ -18,6 +18,9 @@ public class HomepageContentValidator : AbstractValidator<HomepageContent>
             .Must(l => l.Count <= HomepageContentRules.MaxLinks)
             .WithMessage($"Add at most {HomepageContentRules.MaxLinks} links.");
         RuleForEach(x => x.Links).SetValidator(new LinkValidator());
+        RuleFor(x => x.Links)
+            .Must(l => l == null || l.Select(i => i.Id).Distinct().Count() == l.Count)
+            .WithMessage("Each link needs its own id.");
 
         RuleFor(x => x.CoreStack)
             .NotNull()
@@ -113,6 +116,9 @@ public class HomepageContentValidator : AbstractValidator<HomepageContent>
                 .Must(c => c.Count <= HomepageContentRules.MaxAboutCards)
                 .WithMessage($"Add at most {HomepageContentRules.MaxAboutCards} cards.");
             RuleForEach(x => x.Cards).SetValidator(new AboutCardValidator());
+            RuleFor(x => x.Cards)
+                .Must(c => c == null || c.Select(i => i.Id).Distinct().Count() == c.Count)
+                .WithMessage("Each card needs its own id.");
         }
     }
 

@@ -12,7 +12,7 @@ namespace Portfolio.API.Core.Data;
 /// the CV data, all in one transaction. When they match, nothing is replaced, so edits made in the admin hub stay
 /// until the next CV version. <c>Content:ReplaceWithCvSeed=true</c> forces a replacement on that start.
 ///
-/// Replaced: experience, education, certifications, skills, projects, the home page text (draft and published) and the old key/value settings.
+/// Replaced: experience, education, certifications, skills, the CV projects, the home page text (draft and published) and the old editor's setting.
 /// Kept: blog posts, messages, members, and the photo and CV file the owner uploaded. Projects are matched by their
 /// page address, so a repo access request that points at a project stays linked to it.
 /// </summary>
@@ -25,6 +25,8 @@ public static class CvSeeder
         var stored = (await context.SiteSettings.AsNoTracking().FirstOrDefaultAsync(s => s.Key == VersionKey))?.Value;
         var forced = config.GetValue<bool>("Content:ReplaceWithCvSeed");
         var replace = forced || stored != CvSeedData.Version;
+        // Projects the owner added are only removed on a first CV seed or when forced; a later version keeps them.
+        var removeOtherProjects = forced || stored == null;
 
         await using var transaction = context.Database.IsRelational() ? await context.Database.BeginTransactionAsync() : null;
 
@@ -37,12 +39,13 @@ public static class CvSeeder
             context.Educations.RemoveRange(await context.Educations.ToListAsync());
             context.Certifications.RemoveRange(await context.Certifications.ToListAsync());
             context.SiteContents.RemoveRange(await context.SiteContents.ToListAsync());
-            context.SiteSettings.RemoveRange(await context.SiteSettings.ToListAsync());
-            await UpsertProjectsAsync(context);
+            // Only the old editor's settings and the version marker go; any other setting is kept.
+            context.SiteSettings.RemoveRange(await context.SiteSettings.Where(s => s.Key == "hero_photo_cv" || s.Key == VersionKey).ToListAsync());
+            await UpsertProjectsAsync(context, removeOtherProjects);
             await context.SaveChangesAsync();
         }
 
-        if (!await context.Projects.AnyAsync()) await UpsertProjectsAsync(context);
+        if (!await context.Projects.AnyAsync()) await UpsertProjectsAsync(context, false);
         if (!await context.Experiences.AnyAsync()) await context.Experiences.AddRangeAsync(CvSeedData.Experiences());
         if (!await context.Skills.AnyAsync()) await context.Skills.AddRangeAsync(CvSeedData.Skills());
         if (!await context.Educations.AnyAsync()) await context.Educations.AddRangeAsync(CvSeedData.Educations());
@@ -104,15 +107,18 @@ public static class CvSeeder
 
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
 
-    /// <summary>Projects from the CV: existing ones with the same page address are updated, others removed, new ones added.</summary>
-    private static async Task UpsertProjectsAsync(AppDbContext context)
+    /// <summary>Projects from the CV: existing ones with the same page address are updated, others removed only when asked, new ones added.</summary>
+    private static async Task UpsertProjectsAsync(AppDbContext context, bool removeOthers)
     {
         var wanted = CvSeedData.Projects();
         var existing = await context.Projects.ToListAsync();
 
-        foreach (var project in existing.Where(e => wanted.All(w => w.Slug != e.Slug)))
+        if (removeOthers)
         {
-            context.Projects.Remove(project);
+            foreach (var project in existing.Where(e => wanted.All(w => w.Slug != e.Slug)))
+            {
+                context.Projects.Remove(project);
+            }
         }
 
         foreach (var seed in wanted)
