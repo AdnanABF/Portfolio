@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { apiOrigin } from "@/lib/api-origin";
 
 // Next.js 16 calls this convention "proxy" (it was "middleware"). It runs before every /admin request.
 //
@@ -8,17 +9,12 @@ import type { NextRequest } from "next/server";
 // session is real and redirects to the login page when it is not, before any admin page is sent.
 // The API still enforces authorisation on every data request; this check only keeps logged-out users
 // from seeing the admin pages.
-const API_BASE = (
-  process.env.INTERNAL_API_URL ||
-  process.env.NEXT_PUBLIC_API_URL ||
-  "http://localhost:5065"
-).replace(/\/$/, "");
 
 const SESSION_COOKIES = ["portfolio_session", "__Host-portfolio_session"];
 
 async function hasValidAdminSession(cookieHeader: string): Promise<boolean> {
   try {
-    const res = await fetch(`${API_BASE}/api/auth/me`, {
+    const res = await fetch(`${apiOrigin()}/api/auth/me`, {
       headers: { cookie: cookieHeader },
       signal: AbortSignal.timeout(3000),
     });

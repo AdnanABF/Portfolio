@@ -2,6 +2,7 @@
 
 import { cookies } from "next/headers";
 import { updateTag } from "next/cache";
+import { apiOrigin } from "./api-origin";
 import { SITE_CONTENT_TAG } from "./site-content";
 
 /**
@@ -12,9 +13,7 @@ import { SITE_CONTENT_TAG } from "./site-content";
  * sent to an admin-only API endpoint, and nothing is cleared unless the API accepts them.
  */
 export async function refreshHomepageCache(): Promise<void> {
-  const base = (process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL)?.replace(/\/$/, "");
-  if (!base) return;
-
+  const base = apiOrigin();
   const cookieHeader = (await cookies()).toString();
   if (!cookieHeader) return;
 

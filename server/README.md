@@ -1,21 +1,24 @@
 # Portfolio.API — ASP.NET Core (.NET 10) Backend
 
-Backend Web API powering dynamic portfolio content, in-context CMS editing, telemetry, and contact leads for Adnan Bin Farook.
+Backend Web API powering the portfolio's content (edited from the admin home page editor), members, telemetry, and contact leads for Adnan Bin Farook.
 
 ## Architecture
 
 - **Runtime**: .NET 10 (C# 13)
-- **Design**: Feature-Layered (Vertical Slice) architecture across 11 domains:
+- **Design**: Feature-Layered (Vertical Slice) architecture across these domains:
   - `Admin`: System health, sessions, audit log queries
   - `Auth`: ASP.NET Core Identity with HttpOnly cookies and sliding session management
   - `Blog`: Technical articles, tags, markdown publishing
+  - `Credentials`: Education entries and certifications
   - `Contact`: Contact messages and repo access requests (saved, then emailed), email wording, rate limiting
   - `Experience`: Career timeline and accomplishments
+  - `Homepage`: The editable home page content (draft and published)
   - `Health`: Real-time database latency and uptime telemetry
   - `Media`: Uploads stored on local disk (`uploads/`) under the API's content root; served back through `/api/media/{id}`
   - `Projects`: Portfolio case studies, live links, and metrics; `POST /api/projects/{slug}/access-requests` for private repositories
-  - `Settings`: Dynamic site settings (bio, hero media, CV URL)
-  - `Skills`: Categorized skills and proficiency levels
+  - `Settings`: Old key/value site settings (no longer used by the website)
+  - `Skills`: Skills grouped by category (no percentages)
+  - `Users`: The members panel and account management
   - `Telemetry`: Proxy-aware page visits, CV downloads, and analytics
 - **Database**: PostgreSQL with Entity Framework Core migrations
 - **Caching**: ASP.NET Core Output Caching with tag-based invalidation
@@ -31,7 +34,7 @@ Shared sending lives in `Infrastructure/Email` (`IEmailSender`, `ResendEmailSend
 - **Contact form** (`POST /api/contact`): the message is saved, then the API emails the owner (Reply-To is the visitor) and sends the visitor a short fixed acknowledgement.
 - **Repo access request** (`POST /api/projects/{slug}/access-requests`): only for published projects marked private (`IsRepoPrivate`). Saved in the same inbox table with `Type = repo_request` and the project, then the same two emails with repo-request wording.
 - A failed email is logged and never fails the request; the message is already saved and visible in the admin inbox.
-- Settings are in the `Resend` section (see `.env.example`). Outside Development the API refuses to start without `Resend:ApiKey`, `FromAddress`, `NotifyFromAddress` and `OwnerEmail`. In Development with no key, emails are written to the log instead of being sent.
+- Settings are in the `Resend` section (see `.env.example`). Outside Development the API refuses to start without `Resend:ApiKey`, `FromAddress`, `NotifyFromAddress` and `OwnerEmail` (`FromName`, `SendAutoReply` and `SubjectPrefix` are optional). In Development with no key, emails are written to the log instead of being sent.
 
 ## Admin inbox API
 
@@ -72,12 +75,18 @@ Everything on the public home page that is plain content (name, photo, CV, title
 
 - `GET /api/site-content` (public, cached): the published content.
 - `GET /api/admin/site-content`: the draft, with `hasUnpublishedChanges`, who saved it and when.
-- `PUT /api/admin/site-content`: saves the draft. Links and images must start with `https://`, `mailto:`, `tel:` or `/`, lists have size limits, and every section (about, experience, skills, projects, contact) appears exactly once.
+- `PUT /api/admin/site-content`: saves the draft. Links and images must start with `https://`, `mailto:`, `tel:` or `/`, lists have size limits, links and About cards need their own ids, and every section (about, experience, education, skills, projects, certifications, contact) appears exactly once.
 - `POST /api/admin/site-content/publish` copies the draft to the published version and clears the cache. `POST /api/admin/site-content/discard` resets the draft to the published version.
 
-Experience, skills and projects keep their own endpoints and save immediately. `GET /api/skills`, `/api/experience` and `/api/projects` only list hidden items (or unpublished projects) for admins who add `?includeHidden=true` (`includeDrafts=true` for projects). `PUT /api/skills/order`, `/api/experience/order` and `/api/projects/order` take `{ "ids": [...] }` in the new display order.
+Experience, education, skills, projects and certifications keep their own endpoints (`/api/experience`, `/api/education`, `/api/skills`, `/api/projects`, `/api/certifications`) and save immediately. `GET` on these lists only returns hidden items (or unpublished projects) for admins who add `?includeHidden=true` (`includeDrafts=true` for projects). `PUT .../order` on each list takes `{ "ids": [...] }` in the new display order; ids you leave out follow after the ones you list.
 
-The home page data comes from the owner's CV (`CvSeedData`, `HomepageContentDefaults`; phone number and visa details are not included). `CvSeedData.Version` marks which CV the data is from. On every start the API compares it with the version stored in the database: when they differ, which is a new database or a deploy that brought a newer CV, the old experience, skills, projects, home page text and old key/value settings are replaced with the CV data in one transaction. The uploaded photo and CV file, blog posts, messages and members are kept, and projects with the same page address keep their id (so access requests stay linked). When the version matches, nothing is replaced, so edits made in the admin hub survive restarts. To publish a newer CV: update the data in those two files and change `Version`. `Content__ReplaceWithCvSeed=true` forces a replacement on one start (switch it off again).
+The home page data comes from the owner's CV (`CvSeedData`, `HomepageContentDefaults`; phone number and visa details are not included). `CvSeedData.Version` marks which CV the data is from. On every start the API compares it with the version stored in the database: when they differ, which is a new database or a deploy that brought a newer CV, the old experience, education, certifications, skills, home page text and the old editor's setting are replaced with the CV data in one transaction, and the CV's projects are updated. The uploaded photo and CV file, blog posts, messages, members, other settings and projects you added are kept, and projects with the same page address keep their id (so access requests stay linked). On the very first CV seed, projects that are not in the CV are removed. When the version matches, nothing is replaced, so edits made in the admin hub survive restarts. To publish a newer CV: update the data in those two files and change `Version`. `Content__ReplaceWithCvSeed=true` forces a replacement on one start, and also removes projects that are not in the CV (switch it off again).
+
+## Configuration
+
+Every setting, with an explanation, is listed in `.env.example` (deployment, as environment variables) and `Portfolio.API/appsettings.json` (defaults). Required outside Development: `ConnectionStrings__DefaultConnection`, `Admin__Email`, `Admin__Password`, `App__PublicBaseUrl` and the four required `Resend__*` values. Outside Development, uploaded files live in `Storage__LocalPath` (default `uploads` inside the container), which must be a persistent volume.
+
+Sessions use an encrypted cookie. The keys are stored in the database, so restoring a database from another place signs everyone out. Passwords are stored only as salted hashes (ASP.NET Core Identity).
 
 ## Running Locally
 
@@ -86,7 +95,9 @@ cd server/Portfolio.API
 dotnet run
 ```
 
-To send real emails locally, add a `Resend` section to `appsettings.Development.json` (git-ignored, so a key never gets committed) with your own local-only API key:
+For local settings, create `Portfolio.API/appsettings.Development.json` (git-ignored, so passwords and keys never get committed) and override what you need from `appsettings.json`: the database connection, `Admin` (the owner account) and `Resend`. Leave the Resend `ApiKey` empty to just log emails to the console instead of sending them.
+
+To send real emails locally, put your own local-only Resend API key in that file:
 
 ```json
 {
@@ -99,5 +110,3 @@ To send real emails locally, add a `Resend` section to `appsettings.Development.
   }
 }
 ```
-
-Leave `ApiKey` out (or the whole file absent) to just log emails to the console instead of sending them.

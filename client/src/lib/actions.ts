@@ -1,6 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
+import { apiOrigin } from "./api-origin";
 import { MIN_FORM_FILL_MS, contactSchema, type ContactInput } from "./contact";
 
 export interface SendResult {
@@ -12,12 +13,6 @@ export interface SendResult {
 // The API does the real work: it saves the message, applies the rate limit (keyed on the real
 // client IP) and sends the emails through Resend. Nothing is limited or emailed from here.
 const RATE_LIMITED_MESSAGE = "Too many messages sent. Please try again in about 10 minutes.";
-const NOT_CONFIGURED_MESSAGE = "The contact service is not configured yet. Please email directly.";
-
-function apiBase(): string | undefined {
-  // Prefer the internal URL so the hop stays on the private Docker network.
-  return (process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL)?.replace(/\/$/, "");
-}
 
 // Real visitor IP chain as set by the edge proxy (Traefik). The API trusts this container's
 // network hop and walks the chain itself, so it must be forwarded unchanged.
@@ -45,10 +40,7 @@ async function postToApi(
   body: Record<string, string>,
   failureMessage: string,
 ): Promise<SendResult> {
-  const base = apiBase();
-  if (!base) {
-    return { ok: false, error: NOT_CONFIGURED_MESSAGE };
-  }
+  const base = apiOrigin();
 
   const chain = await forwardedChain();
   try {
