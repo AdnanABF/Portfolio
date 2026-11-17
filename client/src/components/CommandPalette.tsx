@@ -4,7 +4,6 @@ import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useSiteContent } from "@/components/site/SiteContentProvider";
-import { trackCvDownload } from "@/lib/api-client";
 import {
   Briefcase,
   Code2,
@@ -117,7 +116,6 @@ export function CommandPalette() {
             category: "Actions" as const,
             icon: FileDown,
             action: () => {
-              trackCvDownload("command_palette");
               window.open(cvUrl, "_blank");
               setIsOpen(false);
             },

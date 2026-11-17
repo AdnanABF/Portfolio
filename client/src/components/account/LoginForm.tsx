@@ -10,6 +10,7 @@ import { errorText } from "@/components/account/errors";
 import { useAdmin, useFreshSession } from "@/components/admin/AdminContext";
 import { FormField, inputClass } from "@/components/ui/FormField";
 import { ApiError, apiLogin, resendVerification } from "@/lib/api-client";
+import { consumeSessionEnded } from "@/lib/session-ended";
 
 /**
  * Only same-site paths are allowed as a return address, so a link cannot send someone to another site after login.
@@ -44,6 +45,17 @@ export function LoginForm() {
   const [resent, setResent] = useState(false);
 
   const returnTo = safeReturnPath(searchParams.get("from"));
+
+  // The server ended this visitor's session: either the proxy said so (reason in the address) or a page noted it.
+  const [endedNote, setEndedNote] = useState(false);
+  useEffect(() => {
+    // Deferred so the state update does not run synchronously inside the effect.
+    const timer = window.setTimeout(() => {
+      if (consumeSessionEnded()) setEndedNote(true);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+  const sessionEnded = endedNote || searchParams.get("reason") === "session-ended";
 
   // Someone who is already signed in has no use for the form. Wait until the server has confirmed it on this page:
   // a session that was revoked or expired must not send the visitor back to where they were just refused.
@@ -108,6 +120,12 @@ export function LoginForm() {
       }
     >
       <form onSubmit={submit} className="space-y-4" noValidate>
+        {sessionEnded && !error && (
+          <Alert kind="info">
+            Your session has ended. You may have signed out on another device, an administrator ended it, or it expired.
+            Please sign in again.
+          </Alert>
+        )}
         {error && <Alert kind="error">{error}</Alert>}
         {notVerified && !resent && (
           <button type="button" onClick={resend} className="cursor-pointer font-mono text-xs font-bold text-primary hover:underline">

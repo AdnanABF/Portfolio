@@ -14,11 +14,18 @@ export interface SendResult {
 // client IP) and sends the emails through Resend. Nothing is limited or emailed from here.
 const RATE_LIMITED_MESSAGE = "Too many messages sent. Please try again in about 10 minutes.";
 
-// Real visitor IP chain as set by the edge proxy (Traefik). The API trusts this container's
-// network hop and walks the chain itself, so it must be forwarded unchanged.
-async function forwardedChain(): Promise<string | null> {
+// What the API needs to know about the real visitor, which this server would otherwise hide:
+// - the IP chain set by the edge proxy (Traefik). The API trusts this container's network hop and walks the chain
+//   itself, so it must be forwarded unchanged.
+// - the visitor's browser details, so the activity log shows their device instead of this server's.
+async function visitorHeaders(): Promise<Record<string, string>> {
   const h = await headers();
-  return h.get("x-forwarded-for");
+  const forwarded: Record<string, string> = {};
+  const chain = h.get("x-forwarded-for");
+  if (chain) forwarded["X-Forwarded-For"] = chain;
+  const userAgent = h.get("user-agent");
+  if (userAgent) forwarded["User-Agent"] = userAgent;
+  return forwarded;
 }
 
 /** Spam checks shared by both forms. Returns a result to send back, or null to continue. */
@@ -42,13 +49,13 @@ async function postToApi(
 ): Promise<SendResult> {
   const base = apiOrigin();
 
-  const chain = await forwardedChain();
+  const forwarded = await visitorHeaders();
   try {
     const res = await fetch(`${base}${path}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...(chain ? { "X-Forwarded-For": chain } : {}),
+        ...forwarded,
       },
       body: JSON.stringify(body),
     });

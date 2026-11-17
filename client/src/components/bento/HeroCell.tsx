@@ -5,7 +5,6 @@ import Image from "next/image";
 import { ParticleField } from "@/components/effects/ParticleField";
 import { useSiteContent } from "@/components/site/SiteContentProvider";
 import { LinkButton } from "@/components/ui/Button";
-import { trackCvDownload } from "@/lib/api-client";
 import type { LinkItem } from "@/lib/homepage";
 import { GitHubIcon, LinkedInIcon } from "./SocialIcons";
 
@@ -63,11 +62,9 @@ export function HeroCell() {
 
         <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
           {profile.cvUrl ? (
-            <div onClick={() => trackCvDownload("hero")}>
-              <LinkButton href={profile.cvUrl} download>
-                {profile.cvButtonLabel || "Download CV"} <Download size={18} />
-              </LinkButton>
-            </div>
+            <LinkButton href={profile.cvUrl} download>
+              {profile.cvButtonLabel || "Download CV"} <Download size={18} />
+            </LinkButton>
           ) : null}
           {profile.projectsButtonLabel ? (
             <LinkButton href="/#projects" variant="secondary">

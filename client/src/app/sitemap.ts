@@ -1,8 +1,11 @@
 import type { MetadataRoute } from "next";
 import { getPosts, getProjects } from "@/lib/api-client";
-import { SITE_URL } from "@/lib/site";
+import { IS_PRODUCTION_SITE, SITE_URL } from "@/lib/site";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  // Staging and other addresses are not listed for search engines.
+  if (!IS_PRODUCTION_SITE) return [];
+
   const now = new Date();
   const [projects, posts] = await Promise.all([getProjects(), getPosts()]);
 

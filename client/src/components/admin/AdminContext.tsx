@@ -1,7 +1,8 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { getMe, onAuthExpired } from "@/lib/api-client";
+import { markSessionEnded } from "@/lib/session-ended";
 
 interface AdminUser {
   id: string;
@@ -78,8 +79,20 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     };
   }, [applyMe]);
 
-  // The server said "401" to some call: the session is gone, so forget it everywhere at once.
-  useEffect(() => onAuthExpired(() => applyMe(null)), [applyMe]);
+  // The server said "401" to some call: the session is gone, so forget it everywhere at once. If someone was signed in,
+  // note it so the sign-in page can tell them their session ended.
+  const accountRef = useRef<AdminUser | null>(null);
+  useEffect(() => {
+    accountRef.current = account;
+  }, [account]);
+  useEffect(
+    () =>
+      onAuthExpired(() => {
+        if (accountRef.current) markSessionEnded();
+        applyMe(null);
+      }),
+    [applyMe],
+  );
 
   const isAdmin = !!user && (user.isAdmin || user.role === "Admin" || user.role === "SuperAdmin");
   const isSuperAdmin = !!user && (user.roles?.includes("SuperAdmin") || user.role === "SuperAdmin");
