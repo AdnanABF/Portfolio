@@ -7,7 +7,7 @@ import { KeyRound, Loader2, LogIn } from "lucide-react";
 import { Alert, AccountShell } from "@/components/account/AccountShell";
 import { PasswordField } from "@/components/account/PasswordField";
 import { errorText } from "@/components/account/errors";
-import { useAdmin } from "@/components/admin/AdminContext";
+import { useAdmin, useFreshSession } from "@/components/admin/AdminContext";
 import { FormField, inputClass } from "@/components/ui/FormField";
 import { ApiError, apiLogin, resendVerification } from "@/lib/api-client";
 
@@ -34,6 +34,7 @@ export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { account, isAdmin, isLoading: authLoading, refreshAuth } = useAdmin();
+  const sessionChecked = useFreshSession();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -44,10 +45,11 @@ export function LoginForm() {
 
   const returnTo = safeReturnPath(searchParams.get("from"));
 
-  // Someone who is already signed in has no use for the form.
+  // Someone who is already signed in has no use for the form. Wait until the server has confirmed it on this page:
+  // a session that was revoked or expired must not send the visitor back to where they were just refused.
   useEffect(() => {
-    if (!authLoading && account) router.replace(destinationFor(isAdmin, returnTo));
-  }, [authLoading, account, isAdmin, returnTo, router]);
+    if (sessionChecked && !authLoading && account) router.replace(destinationFor(isAdmin, returnTo));
+  }, [sessionChecked, authLoading, account, isAdmin, returnTo, router]);
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -79,7 +81,7 @@ export function LoginForm() {
     }
   };
 
-  if (authLoading || account) {
+  if (authLoading || !sessionChecked || account) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-4">
         <div className="flex items-center gap-2 font-mono text-xs text-muted">

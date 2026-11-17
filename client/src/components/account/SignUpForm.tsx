@@ -7,7 +7,7 @@ import { Loader2, MailCheck, UserPlus } from "lucide-react";
 import { Alert, AccountShell } from "@/components/account/AccountShell";
 import { PASSWORD_HINT, PasswordField, passwordProblem } from "@/components/account/PasswordField";
 import { errorText, fieldError } from "@/components/account/errors";
-import { useAdmin } from "@/components/admin/AdminContext";
+import { useAdmin, useFreshSession } from "@/components/admin/AdminContext";
 import { FormField, inputClass } from "@/components/ui/FormField";
 import { registerAccount, resendVerification } from "@/lib/api-client";
 
@@ -22,6 +22,7 @@ type Errors = Partial<Record<"fullName" | "email" | "password" | "confirm" | "fo
 export function SignUpForm() {
   const router = useRouter();
   const { account, isAdmin, isLoading: authLoading } = useAdmin();
+  const sessionChecked = useFreshSession();
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -41,8 +42,8 @@ export function SignUpForm() {
   }, []);
 
   useEffect(() => {
-    if (!authLoading && account) router.replace(isAdmin ? "/admin" : "/account");
-  }, [authLoading, account, isAdmin, router]);
+    if (sessionChecked && !authLoading && account) router.replace(isAdmin ? "/admin" : "/account");
+  }, [sessionChecked, authLoading, account, isAdmin, router]);
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -90,7 +91,7 @@ export function SignUpForm() {
     }
   };
 
-  if (authLoading || account) {
+  if (authLoading || !sessionChecked || account) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-4">
         <div className="flex items-center gap-2 font-mono text-xs text-muted">
