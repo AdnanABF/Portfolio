@@ -25,10 +25,12 @@ import type {
   SystemLogQuery,
 } from "./types";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "";
-
+/**
+ * The browser always calls the website's own address (for example /api/auth/login). next.config.ts forwards /api/* to
+ * the API, so the session cookie belongs to the website and one setting (INTERNAL_API_URL) says where the API is.
+ */
 export function resolveUrl(path: string): string {
-  return API_BASE ? `${API_BASE}${path}` : path;
+  return path;
 }
 
 /** An API call that failed with an HTTP status, so callers can tell "signed out" (401) from other failures. */

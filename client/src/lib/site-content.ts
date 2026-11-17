@@ -1,17 +1,13 @@
 import { cacheLife, cacheTag } from "next/cache";
+import { apiOrigin } from "./api-origin";
 import {
   mapCertifications, mapEducation, mapExperience, mapProjects, mapSkills,
   type ApiCertification, type ApiEducation, type ApiExperience, type ApiProject, type ApiSkill,
 } from "./api-client";
-import { EMPTY_LISTS, FALLBACK_CONTENT, normalizeContent, type HomepageContent, type HomepageLists } from "./homepage";
+import { FALLBACK_CONTENT, normalizeContent, type HomepageContent, type HomepageLists } from "./homepage";
 
 /** Cache tag for the published home page content. The admin hub clears it on publish (see homepage-actions.ts). */
 export const SITE_CONTENT_TAG = "site-content";
-
-function apiBase(): string | undefined {
-  // Prefer the internal URL so the hop stays on the private Docker network.
-  return (process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL)?.replace(/\/$/, "");
-}
 
 /**
  * The published home page content, read on the server so the page and the navigation bar arrive complete
@@ -24,8 +20,7 @@ export async function getSiteContent(): Promise<HomepageContent> {
   cacheLife({ stale: 300, revalidate: 60, expire: 3600 });
   cacheTag(SITE_CONTENT_TAG);
 
-  const base = apiBase();
-  if (!base) return FALLBACK_CONTENT;
+  const base = apiOrigin();
 
   try {
     const res = await fetch(`${base}/api/site-content`, { signal: AbortSignal.timeout(4000) });
@@ -45,8 +40,7 @@ export async function getHomepageLists(): Promise<HomepageLists> {
   cacheLife({ stale: 300, revalidate: 60, expire: 3600 });
   cacheTag(SITE_CONTENT_TAG);
 
-  const base = apiBase();
-  if (!base) return EMPTY_LISTS;
+  const base = apiOrigin();
 
   const read = async <T,>(path: string): Promise<T[]> => {
     try {
