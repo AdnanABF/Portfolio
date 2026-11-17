@@ -56,7 +56,27 @@ export class ApiError extends Error {
  * Turns a failed response into an ApiError. The API answers in two shapes: { message, errors } (errors by field)
  * and a plain { Field: [messages] } object from request validation. Both end up as fieldErrors.
  */
+type AuthExpiredListener = () => void;
+const authExpiredListeners = new Set<AuthExpiredListener>();
+
+/**
+ * Runs the listener whenever the server answers 401 to a signed-in call (the session ended, was revoked or expired).
+ * The sign-in state listens, so every page forgets the stale session in one place before it redirects to the login
+ * page. Without that, the login page would think the visitor is still signed in and send them straight back.
+ */
+export function onAuthExpired(listener: AuthExpiredListener): () => void {
+  authExpiredListeners.add(listener);
+  return () => {
+    authExpiredListeners.delete(listener);
+  };
+}
+
 async function readApiError(res: Response, fallback: string): Promise<ApiError> {
+  // A wrong password on the login form is also a 401, but nobody is signed in then.
+  if (res.status === 401 && !res.url.endsWith("/api/auth/login")) {
+    authExpiredListeners.forEach((listener) => listener());
+  }
+
   const body: unknown = await res.json().catch(() => null);
   const record = body && typeof body === "object" ? (body as Record<string, unknown>) : null;
 
@@ -371,16 +391,15 @@ export async function apiLogout() {
   return res.ok;
 }
 
+/**
+ * Who is signed in. Returns null only when the server says nobody is (401). A timeout, a server error or a rate limit
+ * throws instead, because "I could not ask" is not the same as "signed out" and must not log anyone out.
+ */
 export async function getMe() {
-  try {
-    const res = await safeFetch(resolveUrl("/api/auth/me"), {
-      credentials: "include",
-    });
-    if (!res.ok) return null;
-    return await res.json();
-  } catch {
-    return null;
-  }
+  const res = await safeFetch(resolveUrl("/api/auth/me"), { credentials: "include" }, 8000);
+  if (res.status === 401) return null;
+  if (!res.ok) throw new ApiError("Could not check the session.", res.status);
+  return await res.json();
 }
 
 // ==========================================

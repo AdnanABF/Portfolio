@@ -12,19 +12,23 @@ import { apiOrigin } from "@/lib/api-origin";
 
 const SESSION_COOKIES = ["portfolio_session", "__Host-portfolio_session"];
 
-async function hasValidAdminSession(cookieHeader: string): Promise<boolean> {
+type SessionCheck = "admin" | "not-admin" | "unknown";
+
+async function checkSession(cookieHeader: string): Promise<SessionCheck> {
   try {
     const res = await fetch(`${apiOrigin()}/api/auth/me`, {
       headers: { cookie: cookieHeader },
-      signal: AbortSignal.timeout(3000),
+      signal: AbortSignal.timeout(8000),
     });
-    if (!res.ok) return false;
+    // Only the API saying "not signed in" counts as signed out.
+    if (res.status === 401 || res.status === 403) return "not-admin";
+    // A slow or failing API says nothing about the session (a busy server must not log the owner out).
+    if (!res.ok) return "unknown";
 
     const me = await res.json();
-    return Boolean(me?.isAdmin) || me?.role === "Admin" || me?.role === "SuperAdmin";
+    return Boolean(me?.isAdmin) || me?.role === "Admin" || me?.role === "SuperAdmin" ? "admin" : "not-admin";
   } catch {
-    // API unreachable or too slow: treat as signed out. Nothing in /admin works without the API anyway.
-    return false;
+    return "unknown";
   }
 }
 
@@ -49,8 +53,10 @@ export async function proxy(request: NextRequest) {
   }
 
   // Forward the browser's cookies so the API can recognise the session.
-  const signedIn = await hasValidAdminSession(request.headers.get("cookie") ?? "");
-  return signedIn ? NextResponse.next() : toLogin();
+  // When the API could not be asked, let the request through: the admin pages show only a loading screen until the
+  // browser confirms the session, and the API still checks every data request.
+  const session = await checkSession(request.headers.get("cookie") ?? "");
+  return session === "not-admin" ? toLogin() : NextResponse.next();
 }
 
 export const config = {

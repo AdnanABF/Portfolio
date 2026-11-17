@@ -102,6 +102,20 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
 .AddEntityFrameworkStores<AppDbContext>()
 .AddDefaultTokenProviders();
 
+// Identity re-checks the user's security stamp now and then (every 30 minutes by default) and replaces the signed-in
+// principal with a fresh one. A fresh principal has no "sid" (our session id), so carry it over. Without this the
+// session check below rejects the session at that moment and signs the user out about 30 minutes after sign-in.
+builder.Services.Configure<SecurityStampValidatorOptions>(options =>
+    options.OnRefreshingPrincipal = context =>
+    {
+        var sid = context.CurrentPrincipal?.FindFirst("sid");
+        if (sid != null && context.NewPrincipal?.Identity is System.Security.Claims.ClaimsIdentity identity && !identity.HasClaim("sid", sid.Value))
+        {
+            identity.AddClaim(new System.Security.Claims.Claim("sid", sid.Value));
+        }
+        return Task.CompletedTask;
+    });
+
 // Invite, verification and password-reset links stay valid for three days.
 builder.Services.Configure<DataProtectionTokenProviderOptions>(options =>
     options.TokenLifespan = TimeSpan.FromDays(3));
