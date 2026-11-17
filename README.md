@@ -33,7 +33,7 @@ Website server ───────────────(page data, admin ch
 
 Settings are environment variables. Each deployable folder has an example file with every setting and an explanation:
 
-- `client/.env.example`: the website (`INTERNAL_API_URL`, the only one).
+- `client/.env.example`: the website (`INTERNAL_API_URL`, the API address, and `NEXT_PUBLIC_SITE_URL`, its own public address; any address other than `https://adnanbinfarook.com` is marked `noindex`).
 - `server/.env.example`: the API (database, owner account, email, public address, proxies and more).
 - `server/Portfolio.API/appsettings.json`: the API's commented defaults. Local overrides go in `appsettings.Development.json`, which is git-ignored (never committed).
 

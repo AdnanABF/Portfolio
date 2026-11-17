@@ -14,9 +14,8 @@ Backend Web API powering the portfolio's content (edited from the admin home pag
   - `Experience`: Career timeline and accomplishments
   - `Homepage`: The editable home page content (draft and published)
   - `Health`: Real-time database latency and uptime telemetry
-  - `Media`: Uploads stored on local disk (`uploads/`) under the API's content root; served back through `/api/media/{id}`
+  - `Media`: Uploads stored on local disk (`uploads/`) under the API's content root; served back through `/api/media/{id}`. A file uploaded in the `cv` category is always saved and downloaded as `Adnan CV <upload date>.pdf` (the date is the owner's day: `Media__CvUtcOffsetHours`, 3 for Kuwait)
   - `Projects`: Portfolio case studies, live links, and metrics; `POST /api/projects/{slug}/access-requests` for private repositories
-  - `Settings`: Old key/value site settings (no longer used by the website)
   - `Skills`: Skills grouped by category (no percentages)
   - `Users`: The members panel and account management
   - `Telemetry`: Proxy-aware page visits, CV downloads, and analytics
@@ -45,6 +44,15 @@ Messages and repo requests are managed through admin-only endpoints on `/api/con
 - `GET /api/admin/system-logs`: one page of the error log. Query options: `search` (message, path or exception), `level` (`Error`, `Warning`, `Information`), `from`, `to`, `page`, `pageSize` as above. Returns `items`, `totalCount`, `page`, `pageSize` and `errorCount`, `warningCount`, `informationCount` (whatever the filters).
 - `PUT /api/contact/inquiries/{id}/status`: sets one status (body is the status as a JSON string). Unknown statuses are rejected.
 - `POST /api/contact/inquiries/bulk-status`: body `{ "ids": [...], "status": "archived" }`, up to 100 ids. Returns `{ "updated": n }`.
+
+## Activity log
+
+Admin changes, sign-ins and a few visitor actions are written to the activity log (`/api/admin/activity`). Each entry has the actor, the action, what it was about, the IP and the device (from the `User-Agent`).
+
+- Visitors who are not signed in appear as the actor `visitor` (or their email for a contact message): failed sign-ins (`LOGIN_FAILED`, at most one per address and account every 5 minutes; the password is never recorded, and for an account that does not exist the typed text is kept only if it looks like an email) and CV downloads (`CV_DOWNLOAD`).
+- A CV download is logged and counted by the API when the CV file is served. The owner's own preview, crawlers and link previews, the later parts of a ranged request and repeats from the same IP within 10 minutes are not counted.
+- Uploading and deleting media (`MEDIA_UPLOAD`, `MEDIA_DELETE`) and revoking sessions (`SESSION_REVOKE`, `USER_SESSIONS_REVOKE_ALL`, which name the member, the device and how many sessions) are logged. A member's history (`GET /api/admin/users/{id}/activity`) lists what they did and what was done to their account.
+- The website's server forwards the visitor's IP chain and `User-Agent` for the contact form, so the log shows the visitor's device rather than the server's.
 
 ## Members and accounts
 
