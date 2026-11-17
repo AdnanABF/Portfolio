@@ -134,7 +134,7 @@ public class UsersController : ControllerBase
         return result.Status == UserOpStatus.Ok ? Ok(new { message = "All sessions revoked." }) : ToActionResult(result);
     }
 
-    /// <summary>The member's history: the activity log entries they wrote (sign-ins, edits).</summary>
+    /// <summary>The member's history: what they did (sign-ins, edits) and what was done to their account (revoked sessions, role changes).</summary>
     [HttpGet("{id:guid}/activity")]
     public async Task<ActionResult<ActivityLogPage>> GetActivity(
         Guid id,
@@ -143,7 +143,8 @@ public class UsersController : ControllerBase
         CancellationToken cancellationToken)
     {
         // The route decides whose history this is, whatever the query string says.
-        query.UserId = id;
+        query.UserId = null;
+        query.InvolvingUserId = id;
 
         var validation = await validator.ValidateAsync(query, cancellationToken);
         if (!validation.IsValid) return BadRequest(validation.ToDictionary());

@@ -48,7 +48,7 @@ public class ContactService : IContactService
         await _context.ContactInquiries.AddAsync(inquiry, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
 
-        await _activityLogger.LogAsync("INQUIRY_RECEIVED", "ContactInquiry", inquiry.Id.ToString(), $"Inquiry received from {inquiry.Name} ({inquiry.Email})");
+        await _activityLogger.LogAsync("INQUIRY_RECEIVED", "ContactInquiry", inquiry.Id.ToString(), $"Inquiry received from {inquiry.Name} ({inquiry.Email})", actor: inquiry.Email);
 
         await SendEmailsAsync(inquiry, projectTitle: null);
 
@@ -73,7 +73,7 @@ public class ContactService : IContactService
         await _context.ContactInquiries.AddAsync(inquiry, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
 
-        await _activityLogger.LogAsync("REPO_REQUEST_RECEIVED", "ContactInquiry", inquiry.Id.ToString(), $"Repo access request for '{projectTitle}' from {inquiry.Name} ({inquiry.Email})");
+        await _activityLogger.LogAsync("REPO_REQUEST_RECEIVED", "ContactInquiry", inquiry.Id.ToString(), $"Repo access request for '{projectTitle}' from {inquiry.Name} ({inquiry.Email})", actor: inquiry.Email);
 
         await SendEmailsAsync(inquiry, projectTitle);
 

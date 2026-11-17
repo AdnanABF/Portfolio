@@ -378,7 +378,7 @@ public class UserAdminService : IUserAdminService
 
         // Entries written by the member lose the email, IP address and device.
         await _context.ActivityLogs
-            .Where(a => a.UserId == user.Id || a.UserEmail == email)
+            .Where(a => a.UserId == user.Id || a.UserEmail.ToLower() == emailLower)
             .ExecuteUpdateAsync(s => s
                 .SetProperty(a => a.UserEmail, ErasedMarker)
                 .SetProperty(a => a.IpAddress, string.Empty)
@@ -487,11 +487,19 @@ public class UserAdminService : IUserAdminService
             return UserOpResult<bool>.Blocked("This is the session you are using. Use Sign out instead.");
         }
 
+        // Looked up first so the log can say which device it was. Only a session of this member counts.
+        var session = await _context.UserSessions.AsNoTracking()
+            .Where(s => s.Id == sessionId && s.UserId == id)
+            .Select(s => new { s.DeviceInfo, s.IpAddress })
+            .FirstOrDefaultAsync(cancellationToken);
+
         // Passing the member's id makes the session manager refuse a session that belongs to someone else.
         var revoked = await _sessionManager.RevokeSessionAsync(sessionId, id, isAdmin: false);
         if (!revoked) return UserOpResult<bool>.NotFound();
 
-        await _activityLogger.LogAsync("SESSION_REVOKE", "User", id.ToString(), "A session was revoked by the owner.");
+        var who = await DescribeMemberAsync(id, cancellationToken);
+        var where = session == null ? "" : $" on {session.DeviceInfo} ({session.IpAddress})";
+        await _activityLogger.LogAsync("SESSION_REVOKE", "User", id.ToString(), $"Revoked a session of {who}{where}.");
         return UserOpResult<bool>.Ok(true);
     }
 
@@ -501,10 +509,22 @@ public class UserAdminService : IUserAdminService
 
         // On your own account, the session you are using stays: you are revoking "all the others".
         var keep = id == actorId ? currentSessionId : null;
-        await _sessionManager.RevokeAllUserSessionsAsync(id, keep);
+        var count = await _sessionManager.RevokeAllUserSessionsAsync(id, keep);
+        var who = await DescribeMemberAsync(id, cancellationToken);
+        var sessions = count == 1 ? "1 session" : $"{count} sessions";
         await _activityLogger.LogAsync("USER_SESSIONS_REVOKE_ALL", "User", id.ToString(),
-            keep.HasValue ? "All other sessions of the owner were revoked." : "All sessions of the member were revoked by the owner.");
+            keep.HasValue ? $"Revoked {sessions} of {who}, all except the one in use." : $"Revoked {sessions} of {who}.");
         return UserOpResult<bool>.Ok(true);
+    }
+
+    /// <summary>"Jane Doe (jane@example.com)", for log entries that must name the member.</summary>
+    private async Task<string> DescribeMemberAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var member = await _context.Users.AsNoTracking()
+            .Where(u => u.Id == id)
+            .Select(u => new { u.FullName, u.Email })
+            .FirstOrDefaultAsync(cancellationToken);
+        return member == null ? "a member" : $"{member.FullName} ({member.Email})";
     }
 
     // ---- safety rules and helpers ----------------------------------------------------------------

@@ -19,14 +19,14 @@ public class ActivityLogger : IActivityLogger
         _logger = logger;
     }
 
-    public async Task LogAsync(string action, string entityType, string entityId, string summary, string? detailsJson = null)
+    public async Task LogAsync(string action, string entityType, string entityId, string summary, string? detailsJson = null, string? actor = null)
     {
         try
         {
             var httpContext = _httpContextAccessor.HttpContext;
             var userIdStr = httpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier);
             Guid? userId = Guid.TryParse(userIdStr, out var u) ? u : null;
-            var userEmail = httpContext?.User?.FindFirstValue(ClaimTypes.Email) ?? "system";
+            var userEmail = httpContext?.User?.FindFirstValue(ClaimTypes.Email) ?? actor ?? "system";
 
             var ip = httpContext.GetClientIpAddress();
             var userAgent = httpContext?.Request?.Headers["User-Agent"].ToString() ?? "";
@@ -35,11 +35,11 @@ public class ActivityLogger : IActivityLogger
             var entry = new ActivityLog
             {
                 UserId = userId,
-                UserEmail = userEmail,
-                Action = action,
-                EntityType = entityType,
-                EntityId = entityId,
-                Summary = summary,
+                UserEmail = Cut(userEmail, 100),
+                Action = Cut(action, 50),
+                EntityType = Cut(entityType, 100),
+                EntityId = Cut(entityId, 100),
+                Summary = Cut(summary, 500),
                 DetailsJson = detailsJson,
                 IpAddress = ip,
                 DeviceInfo = deviceInfo,
@@ -54,6 +54,9 @@ public class ActivityLogger : IActivityLogger
             _logger.LogError(ex, "Failed to record activity audit log");
         }
     }
+
+    /// <summary>Keeps a value inside its column: a too long one would make the whole entry fail to save.</summary>
+    private static string Cut(string value, int max) => value.Length <= max ? value : value[..max];
 
     private static string ParseDeviceInfo(string userAgent)
     {

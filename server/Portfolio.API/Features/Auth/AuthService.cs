@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Portfolio.API.Core.Data;
 using Portfolio.API.Core.Entities;
 using Portfolio.API.Infrastructure.Extensions;
@@ -16,19 +17,22 @@ public class AuthService : IAuthService
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly ISessionManager _sessionManager;
     private readonly IActivityLogger _activityLogger;
+    private readonly IMemoryCache _cache;
 
     public AuthService(
         AppDbContext context,
         UserManager<ApplicationUser> userManager,
         SignInManager<ApplicationUser> signInManager,
         ISessionManager sessionManager,
-        IActivityLogger activityLogger)
+        IActivityLogger activityLogger,
+        IMemoryCache cache)
     {
         _context = context;
         _userManager = userManager;
         _signInManager = signInManager;
         _sessionManager = sessionManager;
         _activityLogger = activityLogger;
+        _cache = cache;
     }
 
     public async Task CompleteLoginAsync(ApplicationUser user, string loginMethod, HttpContext httpContext, CancellationToken cancellationToken = default)
@@ -79,10 +83,18 @@ public class AuthService : IAuthService
     {
         var user = await _userManager.FindByEmailAsync(request.Email)
             ?? await _userManager.FindByNameAsync(request.Email);
-        if (user == null) return new LoginOutcome(null, LoginOutcome.InvalidCredentials);
+        if (user == null)
+        {
+            await LogFailedSignInAsync(request.Email, null, locked: false, httpContext);
+            return new LoginOutcome(null, LoginOutcome.InvalidCredentials);
+        }
 
         var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, lockoutOnFailure: true);
-        if (!result.Succeeded) return new LoginOutcome(null, LoginOutcome.InvalidCredentials);
+        if (!result.Succeeded)
+        {
+            await LogFailedSignInAsync(request.Email, user, result.IsLockedOut, httpContext);
+            return new LoginOutcome(null, LoginOutcome.InvalidCredentials);
+        }
 
         // The password was right, so it is safe to say why the account cannot sign in.
         if (user.DeletedAt != null || !user.IsActive) return new LoginOutcome(null, LoginOutcome.AccountDisabled);
@@ -100,6 +112,33 @@ public class AuthService : IAuthService
             Role = roles.FirstOrDefault() ?? user.Role,
             ExpiresAt = DateTime.UtcNow.AddDays(14)
         }, null);
+    }
+
+    /// <summary>
+    /// Records a failed sign-in so the owner can see attempts on an account. Only one entry per address and account every
+    /// five minutes, so a guessing run cannot flood the log. The client is told nothing different either way.
+    /// </summary>
+    private async Task LogFailedSignInAsync(string typedName, ApplicationUser? user, bool locked, HttpContext httpContext)
+    {
+        var clean = new string(typedName.Where(c => !char.IsControl(c)).ToArray()).Trim();
+        if (clean.Length > 80) clean = clean[..80];
+
+        // For a real account the typed name is that account's own email or username. For anything else it could be a
+        // password typed into the wrong box, so only something that looks like an email address is ever kept.
+        var shown = user != null || LooksLikeEmail(clean) ? clean : "(not an email)";
+
+        var key = $"login-failed:{httpContext.GetClientIpAddress()}|{shown.ToLowerInvariant()}";
+        if (_cache.TryGetValue(key, out _)) return;
+        _cache.Set(key, true, TimeSpan.FromMinutes(5));
+
+        var what = user == null ? "no such account" : locked ? "account is locked" : "wrong password";
+        await _activityLogger.LogAsync("LOGIN_FAILED", "User", user?.Id.ToString() ?? "-", $"Failed sign-in for \"{shown}\" ({what}).", actor: "visitor");
+    }
+
+    private static bool LooksLikeEmail(string value)
+    {
+        var at = value.IndexOf('@');
+        return at > 0 && !value.Contains(' ') && value.IndexOf('.', at) > at + 1 && !value.EndsWith('.');
     }
 
     public async Task LogoutAsync(HttpContext httpContext)
