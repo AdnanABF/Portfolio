@@ -4,7 +4,11 @@ import { Providers } from "@/components/providers";
 import { CustomCursor } from "@/components/effects/CustomCursor";
 import { Footer } from "@/components/site/Footer";
 import { Navbar } from "@/components/site/Navbar";
-import { SITE_DESCRIPTION, SITE_TITLE, SITE_URL } from "@/lib/site";
+import { SiteContentProvider } from "@/components/site/SiteContentProvider";
+import { getHomepageLists, getSiteContent } from "@/lib/site-content";
+import { IS_PRODUCTION_SITE, SITE_URL } from "@/lib/site";
+import { CommandPalette } from "@/components/CommandPalette";
+import { LiveHealthWidget } from "@/components/LiveHealthWidget";
 import "./globals.css";
 
 const inter = Inter({
@@ -17,48 +21,52 @@ const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
 });
 
-const title = SITE_TITLE;
-const description = SITE_DESCRIPTION;
+export async function generateMetadata(): Promise<Metadata> {
+  // The title and description are editable in the admin hub (Search appearance).
+  const { seo } = await getSiteContent();
+  const title = seo.title;
+  const description = seo.description;
 
-export const metadata: Metadata = {
-  metadataBase: new URL(SITE_URL),
-  title,
-  description,
-  robots: "index, follow",
-  alternates: { canonical: "/" },
-  icons: {
-    icon: [
-      { url: "/favicon.ico", sizes: "any" },
-      { url: "/icon.svg", type: "image/svg+xml" },
-      { url: "/icon.png", type: "image/png", sizes: "512x512" },
-    ],
-    apple: [
-      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
-    ],
-    shortcut: "/favicon.ico",
-  },
-  manifest: "/manifest.webmanifest",
-  verification: {
-    google: "fHNCG17Dtx4SsbYFQ2mzxvzGInh3GxrOPDSHAueft_M",
-  },
-  openGraph: {
-    type: "website",
-    url: "/",
+  return {
+    metadataBase: new URL(SITE_URL),
     title,
-    description:
-      "Explore the professional portfolio of Adnan Bin Farook. Specializing in high-performance web architectures and cloud deployments.",
-    images: [{ url: "/og-image.png" }],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title,
-    description:
-      "Software Engineer building modern web solutions with .NET and React.",
-    images: ["/og-image.png"],
-  },
-};
+    description,
+    robots: IS_PRODUCTION_SITE ? "index, follow" : "noindex, nofollow",
+    alternates: { canonical: "/" },
+    icons: {
+      icon: [
+        { url: "/favicon.ico", sizes: "any" },
+        { url: "/icon.svg", type: "image/svg+xml" },
+        { url: "/icon.png", type: "image/png", sizes: "512x512" },
+      ],
+      apple: [
+        { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+      ],
+      shortcut: "/favicon.ico",
+    },
+    manifest: "/manifest.webmanifest",
+    verification: {
+      google: "fHNCG17Dtx4SsbYFQ2mzxvzGInh3GxrOPDSHAueft_M",
+    },
+    openGraph: {
+      type: "website",
+      url: "/",
+      title,
+      description,
+      images: [{ url: "/og-image.png" }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: ["/og-image.png"],
+    },
+  };
+}
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const [content, lists] = await Promise.all([getSiteContent(), getHomepageLists()]);
+
   return (
     <html
       lang="en"
@@ -67,6 +75,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="flex min-h-full flex-col bg-background text-foreground">
         <Providers>
+          <SiteContentProvider initial={content} lists={lists}>
           <a
             href="#main"
             className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[10000] focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:font-bold focus:text-white dark:focus:text-black"
@@ -79,6 +88,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             {children}
           </main>
           <Footer />
+          <CommandPalette />
+          <LiveHealthWidget />
+          </SiteContentProvider>
         </Providers>
       </body>
     </html>

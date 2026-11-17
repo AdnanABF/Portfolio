@@ -1,73 +1,15 @@
 "use client";
 
 import { ExternalLink, FolderGit2, Lock, X } from "lucide-react";
-import Image from "next/image";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Badge } from "@/components/ui/Badge";
-import { Card } from "@/components/ui/Card";
 import type { ProjectItem } from "@/lib/types";
 
-export function ProjectCard({ project }: { project: ProjectItem }) {
-  return (
-    <Card className="group flex h-full flex-col overflow-hidden">
-      <Link
-        href={`/projects/${project.slug}`}
-        className="relative block h-48 overflow-hidden"
-        aria-label={`View ${project.title} details`}
-      >
-        <Image
-          src={project.imageUrl}
-          alt={project.title}
-          width={600}
-          height={400}
-          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-        />
-      </Link>
-
-      <div className="flex grow flex-col p-6">
-        <div className="mb-3 flex items-start justify-between gap-2">
-          <Link
-            href={`/projects/${project.slug}`}
-            className="text-xl font-bold text-foreground transition-colors hover:text-primary"
-          >
-            {project.title}
-          </Link>
-          <FolderGit2
-            size={20}
-            className="mt-1 shrink-0 text-muted transition-colors group-hover:text-primary"
-          />
-        </div>
-
-        <p className="mb-4 text-sm leading-relaxed text-muted">
-          {project.description}
-        </p>
-
-        <div className="mb-4 flex flex-wrap gap-2">
-          {project.techStack.map((tech, i) => {
-            const colors: Array<"yellow" | "mint" | "violet" | "coral" | "sky"> = [
-              "mint",
-              "coral",
-              "yellow",
-              "sky",
-              "violet",
-            ];
-            return (
-              <Badge key={tech} color={colors[i % colors.length]}>
-                {tech}
-              </Badge>
-            );
-          })}
-        </div>
-
-        <ProjectLinks project={project} />
-      </div>
-    </Card>
-  );
-}
-
-function ProjectLinks({ project }: { project: ProjectItem }) {
+/**
+ * The code and live-site links of a project. A private repository shows a lock instead of a link; clicking it asks
+ * first and then opens the contact form with a request for access prefilled.
+ */
+export function ProjectLinks({ project, className = "" }: { project: ProjectItem; className?: string }) {
   const router = useRouter();
   const [requestOpen, setRequestOpen] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -110,7 +52,7 @@ function ProjectLinks({ project }: { project: ProjectItem }) {
 
   return (
     <>
-      <div className="mt-auto flex items-center gap-4 border-t border-line pt-4">
+      <div className={`flex flex-wrap items-center gap-x-5 gap-y-2 ${className}`}>
         {project.githubUrl &&
           (project.isPrivate ? (
             <button
@@ -137,7 +79,7 @@ function ProjectLinks({ project }: { project: ProjectItem }) {
             href={project.liveUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="ml-auto flex items-center gap-2 text-sm text-muted transition-colors hover:text-primary"
+            className="flex items-center gap-2 text-sm text-muted transition-colors hover:text-primary"
           >
             Live Demo <ExternalLink size={16} />
           </a>

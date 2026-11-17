@@ -1,4 +1,13 @@
-export const SITE_URL = "https://adnanbinfarook.com";
+const PRODUCTION_URL = "https://adnanbinfarook.com";
+
+/**
+ * The public address of this deployment (NEXT_PUBLIC_SITE_URL, set when the site is built). Without it the site assumes
+ * it is the real one.
+ */
+export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || PRODUCTION_URL).replace(/\/$/, "");
+
+/** Only the real website is meant for search engines; staging and any other address is kept out of their results. */
+export const IS_PRODUCTION_SITE = SITE_URL === PRODUCTION_URL;
 
 export const SITE_NAME = "Adnan Bin Farook";
 export const SITE_ROLE = "Software Engineer";

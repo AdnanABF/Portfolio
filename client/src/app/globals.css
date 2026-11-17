@@ -223,3 +223,22 @@ body {
   border: none;
   padding: 0;
 }
+
+
+/* The small signal that travels down the lines between skill layers (see components/sections/Skills.tsx). */
+@keyframes skills-signal {
+  0% { top: -4px; opacity: 0; }
+  15% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { top: calc(100% - 4px); opacity: 0; }
+}
+.skills-signal {
+  animation: skills-signal 2.2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skills-signal {
+    animation: none;
+    top: 50%;
+    opacity: 1;
+  }
+}

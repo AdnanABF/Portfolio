@@ -1,0 +1,217 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import {
+  Activity,
+  PenSquare,
+  Inbox,
+  LayoutDashboard,
+  Lock,
+  LogOut,
+  ShieldCheck,
+  Terminal,
+  User,
+  Users,
+} from "lucide-react";
+import { useAdmin } from "@/components/admin/AdminContext";
+import { apiLogout } from "@/lib/api-client";
+
+export function UserMenu() {
+  const { isAdmin, isSuperAdmin, account, isLoading, refreshAuth } = useAdmin();
+  const [isOpen, setIsOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+
+  // Close on outside click
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen]);
+
+  const handleLogout = async () => {
+    setIsOpen(false);
+    await apiLogout();
+    await refreshAuth();
+    router.push("/login");
+  };
+
+  if (isLoading) {
+    return (
+      <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl border-2 border-line bg-surface/50 opacity-40">
+        <Lock size={16} className="text-muted" />
+      </div>
+    );
+  }
+
+  // Not logged in: a sign-in button
+  if (!account) {
+    return (
+      <Link
+        href="/login"
+        aria-label="Sign in"
+        title="Sign in"
+        className="inline-flex h-10 w-10 items-center justify-center rounded-xl border-2 border-line bg-surface text-foreground shadow-[2px_2px_0px_var(--shadow-color)] transition-all hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0px_var(--shadow-color)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_var(--shadow-color)] outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary cursor-pointer hover:text-primary"
+      >
+        <Lock size={17} />
+      </Link>
+    );
+  }
+
+  // Logged in user: initials
+  const initials = account.fullName
+    ? account.fullName
+        .split(" ")
+        .filter(Boolean)
+        .map((n) => n[0])
+        .slice(0, 2)
+        .join("")
+        .toUpperCase()
+    : account.email.slice(0, 2).toUpperCase();
+
+  return (
+    <div className="relative" ref={menuRef}>
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        aria-expanded={isOpen}
+        aria-label="User account menu"
+        title={account.fullName || account.email}
+        className="group relative inline-flex h-10 w-10 items-center justify-center rounded-xl border-2 border-primary bg-primary/10 font-mono text-xs font-black text-primary shadow-[2px_2px_0px_var(--shadow-color)] transition-all hover:translate-x-[-1px] hover:translate-y-[-1px] hover:bg-primary hover:text-white hover:shadow-[3px_3px_0px_var(--shadow-color)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_var(--shadow-color)] outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary cursor-pointer"
+      >
+        <span>{initials}</span>
+        {/* Online indicator dot */}
+        <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-surface bg-accent-mint" />
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 top-12 z-50 w-72 rounded-2xl border-2 border-line bg-surface p-2 shadow-[6px_6px_0px_var(--shadow-color)] backdrop-blur-md">
+          {/* User Header */}
+          <div className="flex items-center gap-3 rounded-xl bg-surface-2 p-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 border-line bg-primary font-mono text-sm font-extrabold text-white shadow-[1.5px_1.5px_0px_var(--shadow-color)]">
+              {initials}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate font-bold text-sm text-foreground">
+                {account.fullName || "Member"}
+              </div>
+              <div className="truncate font-mono text-[11px] text-muted">
+                {account.email}
+              </div>
+              <div className="mt-1 inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/10 px-1.5 py-0.5 font-mono text-[10px] font-bold text-primary">
+                <ShieldCheck className="h-3 w-3" />
+                <span>{account.role || "Member"}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Navigation Links */}
+          <div className="mt-2 space-y-0.5">
+            {isAdmin && (
+            <Link
+              href="/admin"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-2.5 rounded-xl px-3 py-2 font-mono text-xs font-semibold text-foreground transition-colors hover:bg-cream hover:text-primary"
+            >
+              <LayoutDashboard className="h-4 w-4 text-primary" />
+              <span>Dashboard Overview</span>
+            </Link>
+            )}
+
+            {isAdmin && (
+            <Link
+              href="/admin/homepage"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-2.5 rounded-xl px-3 py-2 font-mono text-xs font-semibold text-foreground transition-colors hover:bg-cream hover:text-primary"
+            >
+              <PenSquare className="h-4 w-4 text-primary" />
+              <span>Edit Home Page</span>
+            </Link>
+            )}
+
+            {isSuperAdmin && (
+            <Link
+              href="/admin/members"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-2.5 rounded-xl px-3 py-2 font-mono text-xs font-semibold text-foreground transition-colors hover:bg-cream hover:text-primary"
+            >
+              <Users className="h-4 w-4 text-accent-coral" />
+              <span>Members</span>
+            </Link>
+            )}
+
+            <Link
+              href="/account"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-2.5 rounded-xl px-3 py-2 font-mono text-xs font-semibold text-foreground transition-colors hover:bg-cream hover:text-primary"
+            >
+              <User className="h-4 w-4 text-primary" />
+              <span>My Account</span>
+            </Link>
+
+            {isAdmin && (
+              <>
+                <Link
+                  href="/admin/activity"
+                  onClick={() => setIsOpen(false)}
+                  className="flex items-center gap-2.5 rounded-xl px-3 py-2 font-mono text-xs font-semibold text-foreground transition-colors hover:bg-cream hover:text-primary"
+            >
+                  <Activity className="h-4 w-4 text-accent-mint" />
+                  <span>Activity Log</span>
+                </Link>
+                <Link
+                  href="/admin/inbox"
+                  onClick={() => setIsOpen(false)}
+                  className="flex items-center gap-2.5 rounded-xl px-3 py-2 font-mono text-xs font-semibold text-foreground transition-colors hover:bg-cream hover:text-primary"
+            >
+                  <Inbox className="h-4 w-4 text-accent-yellow" />
+                  <span>Contact Inquiries</span>
+                </Link>
+                <Link
+                  href="/admin/system-logs"
+                  onClick={() => setIsOpen(false)}
+                  className="flex items-center gap-2.5 rounded-xl px-3 py-2 font-mono text-xs font-semibold text-foreground transition-colors hover:bg-cream hover:text-primary"
+            >
+                  <Terminal className="h-4 w-4 text-muted" />
+                  <span>System Logs</span>
+                </Link>
+              </>
+            )}
+          </div>
+
+          {/* Divider */}
+          <div className="my-1.5 border-b border-line" />
+
+          {/* Logout */}
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 font-mono text-xs font-bold text-accent-coral transition-colors hover:bg-accent-coral/10 cursor-pointer"
+          >
+            <LogOut className="h-4 w-4" />
+            <span>Sign Out</span>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

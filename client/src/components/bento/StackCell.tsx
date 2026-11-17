@@ -1,19 +1,8 @@
+"use client";
+
+import { useSiteContent } from "@/components/site/SiteContentProvider";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
-import { SKILLS } from "@/lib/data";
-
-const HIGHLIGHTS = [
-  "C#",
-  ".NET Core",
-  "ASP .NET Core MVC",
-  "MSSQL",
-  "React",
-  "TypeScript",
-  "NestJS",
-  "MongoDB",
-  "Azure Devops",
-  "Git",
-];
 
 const BADGE_COLORS: Array<"yellow" | "mint" | "violet" | "coral" | "sky"> = [
   "coral",
@@ -21,27 +10,22 @@ const BADGE_COLORS: Array<"yellow" | "mint" | "violet" | "coral" | "sky"> = [
   "sky",
   "mint",
   "violet",
-  "coral",
-  "yellow",
-  "mint",
-  "sky",
-  "violet",
 ];
 
+/** The short "Core stack" list in the hero area. The items are set in the admin hub. */
 export function StackCell() {
-  const skills = SKILLS.filter((s) => HIGHLIGHTS.includes(s.name));
+  const { coreStack } = useSiteContent();
+  if (coreStack.length === 0) return null;
+
   return (
     <Card className="flex h-full flex-col gap-4 p-6">
       <h3 className="text-lg font-bold text-foreground">
         <span className="mr-2 text-primary">/</span>Core stack
       </h3>
       <div className="flex flex-wrap gap-2">
-        {skills.map((skill, index) => (
-          <Badge
-            key={skill.name}
-            color={BADGE_COLORS[index % BADGE_COLORS.length]}
-          >
-            {skill.name}
+        {coreStack.map((item, index) => (
+          <Badge key={`${item}-${index}`} color={BADGE_COLORS[index % BADGE_COLORS.length]}>
+            {item}
           </Badge>
         ))}
       </div>

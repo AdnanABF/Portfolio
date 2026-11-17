@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 import createMDX from "@next/mdx";
 
+const apiBase = (process.env.INTERNAL_API_URL || "http://localhost:5065").replace(/\/$/, "");
+
 const nextConfig: NextConfig = {
   /* config options here */
   cacheComponents: true,
@@ -15,6 +17,18 @@ const nextConfig: NextConfig = {
         as: "*.css",
       },
     },
+  },
+  async rewrites() {
+    return [
+      {
+        source: "/api/:path*",
+        destination: `${apiBase}/api/:path*`,
+      },
+      {
+        source: "/media/:path*",
+        destination: `${apiBase}/api/media/:path*`,
+      },
+    ];
   },
 };
 

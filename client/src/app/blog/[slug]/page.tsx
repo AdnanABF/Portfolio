@@ -1,11 +1,8 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getAllPosts, getPost } from "@/lib/posts";
-
-export function generateStaticParams() {
-  return getAllPosts().map((p) => ({ slug: p.slug }));
-}
+import { getPost } from "@/lib/posts";
 
 export async function generateMetadata({
   params,
@@ -13,7 +10,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const post = getPost(slug);
+  const post = await getPost(slug);
   if (!post) return { title: "Post not found" };
   return {
     title: `${post.meta.title} | Adnan Bin Farook`,
@@ -23,6 +20,7 @@ export async function generateMetadata({
 }
 
 function formatDate(iso: string) {
+  if (!iso) return "";
   return new Date(`${iso}T00:00:00`).toLocaleDateString("en-US", {
     year: "numeric",
     month: "long",
@@ -30,14 +28,14 @@ function formatDate(iso: string) {
   });
 }
 
-export default async function BlogPostPage({
+async function BlogPostContent({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const post = getPost(slug);
-  if (!post) notFound();
+  const post = await getPost(slug);
+  if (!post || !post.Content) notFound();
   const { Content } = post;
 
   return (
@@ -63,5 +61,23 @@ export default async function BlogPostPage({
         <Content />
       </div>
     </article>
+  );
+}
+
+export default function BlogPostPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-3xl px-6 pt-28 pb-16 md:px-12">
+          <div className="h-64 animate-pulse rounded-2xl border border-line bg-surface/50" />
+        </div>
+      }
+    >
+      <BlogPostContent params={params} />
+    </Suspense>
   );
 }

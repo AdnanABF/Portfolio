@@ -1,5 +1,24 @@
 node_modules/
 dist/
 build/
+.next/
 .env
+.env*.local
 .vscode/
+
+# Visual Studio and .NET artifacts
+.vs/
+bin/
+obj/
+TestResults/
+*.user
+*.userosscache
+*.suo
+*.userprefs
+.idea/
+appsettings.Development.json
+appsettings.*.local.json
+
+# Antigravity / AI Agent local customizations
+.agents/
+CLAUDE.md

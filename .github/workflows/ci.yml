@@ -1,25 +1,71 @@
 name: CI Verification
 
+# Runs on every pull request into develop or master. The job name below ("Lint & Build Check") is the check that
+# branch protection requires, so keep it. There is deliberately no path filter: a filtered-out run never reports,
+# and a required check that never reports blocks a pull request that only changes docs or workflows.
 on:
   pull_request:
     branches:
       - develop
       - master
-    paths:
-      - 'client/**'
-      - '.github/workflows/ci.yml'
   workflow_dispatch:
+
+# Read-only token: this workflow only checks code, it never pushes or comments.
+permissions:
+  contents: read
+
+# A newer push to the same pull request replaces the older run.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   validate:
     name: Lint & Build Check
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: client
+    timeout-minutes: 25
+
+    # PostgreSQL for the server integration tests. The tests read TEST_CONNECTION_STRING (below); the database is
+    # created and migrated by the tests themselves.
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: portfolio_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      TEST_CONNECTION_STRING: Host=localhost;Port=5432;Database=portfolio_test;Username=postgres;Password=postgres
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('server/**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Build the .NET backend
+        run: dotnet build server/Portfolio.API.slnx --configuration Release
+
+      - name: Run the server tests
+        run: dotnet test server/Portfolio.API.slnx --configuration Release --no-build --verbosity normal
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -28,11 +74,15 @@ jobs:
           cache: 'npm'
           cache-dependency-path: client/package-lock.json
 
-      - name: Install dependencies
+      - name: Install client dependencies
+        working-directory: client
         run: npm ci
 
-      - name: Run ESLint
+      - name: Run client ESLint
+        working-directory: client
         run: npm run lint
 
-      - name: Verify Production Build
+      # The production build also type-checks the client (a separate tsc run would need the types Next generates).
+      - name: Verify the client production build
+        working-directory: client
         run: npm run build

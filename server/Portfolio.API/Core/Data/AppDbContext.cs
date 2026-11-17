@@ -1,0 +1,138 @@
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
+using Portfolio.API.Core.Entities;
+
+namespace Portfolio.API.Core.Data;
+
+public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>, IDataProtectionKeyContext
+{
+    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
+    {
+    }
+
+    public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
+    public DbSet<UserSession> UserSessions => Set<UserSession>();
+    public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
+    public DbSet<SystemLog> SystemLogs => Set<SystemLog>();
+    public DbSet<VisitorAnalytic> VisitorAnalytics => Set<VisitorAnalytic>();
+    public DbSet<CvDownload> CvDownloads => Set<CvDownload>();
+    public DbSet<Project> Projects => Set<Project>();
+    public DbSet<BlogPost> BlogPosts => Set<BlogPost>();
+    public DbSet<Experience> Experiences => Set<Experience>();
+    public DbSet<Skill> Skills => Set<Skill>();
+    public DbSet<Education> Educations => Set<Education>();
+    public DbSet<Certification> Certifications => Set<Certification>();
+    public DbSet<SiteSetting> SiteSettings => Set<SiteSetting>();
+    public DbSet<SiteContent> SiteContents => Set<SiteContent>();
+    public DbSet<ContactInquiry> ContactInquiries => Set<ContactInquiry>();
+    public DbSet<MediaAsset> MediaAssets => Set<MediaAsset>();
+
+    protected override void OnModelCreating(ModelBuilder builder)
+    {
+        base.OnModelCreating(builder);
+
+        // Rename Identity tables for clean Postgres naming
+        builder.Entity<ApplicationUser>(b =>
+        {
+            b.ToTable("Users");
+            b.HasIndex(u => u.LastLoginAt);
+        });
+        builder.Entity<IdentityRole<Guid>>(b => b.ToTable("Roles"));
+        builder.Entity<IdentityUserRole<Guid>>(b => b.ToTable("UserRoles"));
+        builder.Entity<IdentityUserClaim<Guid>>(b => b.ToTable("UserClaims"));
+        builder.Entity<IdentityUserLogin<Guid>>(b => b.ToTable("UserLogins"));
+        builder.Entity<IdentityRoleClaim<Guid>>(b => b.ToTable("RoleClaims"));
+        builder.Entity<IdentityUserToken<Guid>>(b => b.ToTable("UserTokens"));
+
+        // User -> Sessions
+        builder.Entity<UserSession>(b =>
+        {
+            b.HasIndex(s => s.UserId);
+            b.HasIndex(s => s.LastActiveAt);
+            b.HasIndex(s => s.ExpiresAt);
+            b.HasOne(s => s.User)
+             .WithMany(u => u.Sessions)
+             .HasForeignKey(s => s.UserId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // User -> ActivityLogs
+        builder.Entity<ActivityLog>(b =>
+        {
+            b.HasIndex(a => a.Timestamp);
+            b.HasOne(a => a.User)
+             .WithMany(u => u.ActivityLogs)
+             .HasForeignKey(a => a.UserId)
+             .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ContactInquiry -> Project (repo access requests); deleting a project keeps the inquiry
+        builder.Entity<ContactInquiry>(b =>
+        {
+            b.HasIndex(i => i.Type);
+            b.HasIndex(i => i.ProjectId);
+            b.HasOne(i => i.Project)
+             .WithMany()
+             .HasForeignKey(i => i.ProjectId)
+             .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // MediaAssets index
+        builder.Entity<MediaAsset>(b =>
+        {
+            b.HasIndex(m => m.Category);
+            b.HasIndex(m => m.EntityId);
+            b.HasIndex(m => m.CreatedAt);
+        });
+
+        // Indexes for performance
+        builder.Entity<Project>(b =>
+        {
+            b.HasIndex(p => p.Slug).IsUnique();
+            b.HasIndex(p => p.SortOrder);
+            b.HasIndex(p => p.IsPublished);
+        });
+
+        builder.Entity<BlogPost>(b =>
+        {
+            b.HasIndex(p => p.Slug).IsUnique();
+            b.HasIndex(p => p.PublishedAt);
+            b.HasIndex(p => p.IsPublished);
+        });
+
+        builder.Entity<Experience>(b =>
+        {
+            b.HasIndex(e => e.SortOrder);
+        });
+
+        builder.Entity<Education>(b =>
+        {
+            b.HasIndex(e => e.SortOrder);
+        });
+
+        builder.Entity<Certification>(b =>
+        {
+            b.HasIndex(c => c.SortOrder);
+        });
+
+        builder.Entity<Skill>(b =>
+        {
+            b.HasIndex(s => s.Category);
+            b.HasIndex(s => s.SortOrder);
+        });
+
+        builder.Entity<VisitorAnalytic>(b =>
+        {
+            b.HasIndex(v => v.Timestamp);
+            b.HasIndex(v => v.Path);
+        });
+
+        builder.Entity<SystemLog>(b =>
+        {
+            b.HasIndex(s => s.Timestamp);
+            b.HasIndex(s => s.Level);
+        });
+    }
+}

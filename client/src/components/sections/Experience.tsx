@@ -1,107 +1,70 @@
-import { Briefcase, Calendar } from "lucide-react";
-import { Reveal } from "@/components/effects/Reveal";
-import { Badge } from "@/components/ui/Badge";
-import { Card } from "@/components/ui/Card";
-import { SectionHeading } from "@/components/ui/SectionHeading";
-import { EXPERIENCE } from "@/lib/data";
+"use client";
 
+import { useState } from "react";
+import { Briefcase, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
+import { Reveal } from "@/components/effects/Reveal";
+import { useSiteContent, useSiteLists } from "@/components/site/SiteContentProvider";
+import { sectionOf } from "@/lib/homepage";
+import { SectionHead } from "./SectionHead";
+import { TimelineEntry, TimelineList } from "./TimelineEntry";
+
+/**
+ * Work experience as a single timeline. Each entry shows the role, company, place and period; the achievements open
+ * on demand. The most recent role starts open, and "Expand all / Collapse all" opens or closes everything.
+ */
 export function Experience() {
+  const content = useSiteContent();
+  const items = useSiteLists().experience;
+  const [open, setOpen] = useState<Set<string>>(() => new Set(items.slice(0, 1).map((i) => i.id)));
+
+  if (items.length === 0) return null;
+
+  const withDetails = items.filter((i) => i.description.length > 0);
+  const allOpen = withDetails.length > 0 && withDetails.every((i) => open.has(i.id));
+  const toggle = (id: string) =>
+    setOpen((cur) => {
+      const next = new Set(cur);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
   return (
     <section id="experience" className="scroll-mt-24 px-6 py-20 md:px-12">
-      <div className="mx-auto max-w-7xl">
+      <div className="mx-auto max-w-4xl">
         <Reveal>
-          <SectionHeading
-            eyebrow="// career"
-            title={
-              <>
-                Professional <span className="text-primary">Odyssey</span>
-              </>
-            }
-          />
+          <SectionHead section={sectionOf(content, "experience")} />
         </Reveal>
 
-        <div className="relative">
-          {/* Vertical Line */}
-          <div className="absolute top-0 left-0 h-full w-px -translate-x-1/2 bg-gradient-to-b from-transparent via-primary/40 to-transparent md:left-1/2" />
-
-          <div className="space-y-8">
-            {EXPERIENCE.map((exp, index) => (
-              <Reveal key={exp.id} delay={index * 100}>
-                <div
-                  className={`relative flex flex-col items-stretch md:flex-row md:items-center ${
-                    index % 2 === 0 ? "md:flex-row-reverse" : ""
-                  }`}
-                >
-                  {/* Dot on Line */}
-                  <div className="absolute top-8 left-0 z-10 h-4 w-4 -translate-x-1/2 rounded-full border-2 border-primary bg-background md:top-1/2 md:left-1/2 md:-translate-y-1/2" />
-
-                  {/* Content Card */}
-                  <div
-                    className={`w-full pl-8 md:w-5/12 md:pl-0 ${
-                      index % 2 === 0
-                        ? "md:pl-12"
-                        : "md:pr-12 md:text-right"
-                    }`}
-                  >
-                    <Card className="p-6">
-                      <div
-                        className={`mb-2 flex items-center gap-2 font-mono text-sm text-primary ${
-                          index % 2 !== 0 && "md:justify-end"
-                        }`}
-                      >
-                        <Calendar size={14} />
-                        {exp.period}
-                      </div>
-
-                      <h3 className="mb-1 text-xl font-bold text-foreground">
-                        {exp.role}
-                      </h3>
-
-                      <div
-                        className={`mb-4 flex items-center gap-2 text-muted ${
-                          index % 2 !== 0 && "md:justify-end"
-                        }`}
-                      >
-                        <Briefcase size={14} />
-                        {exp.company}
-                      </div>
-
-                      <ul className="mb-4 list-inside list-disc space-y-2 text-sm text-muted">
-                        {exp.description.map((desc) => (
-                          <li key={desc.slice(0, 32)}>{desc}</li>
-                        ))}
-                      </ul>
-
-                      <div
-                        className={`flex flex-wrap gap-2 ${
-                          index % 2 !== 0 && "md:justify-end"
-                        }`}
-                      >
-                        {exp.tech.map((t, i) => {
-                          const colors: Array<"yellow" | "mint" | "violet" | "coral" | "sky"> = [
-                            "sky",
-                            "mint",
-                            "yellow",
-                            "coral",
-                            "violet",
-                          ];
-                          return (
-                            <Badge key={t} color={colors[i % colors.length]}>
-                              {t}
-                            </Badge>
-                          );
-                        })}
-                      </div>
-                    </Card>
-                  </div>
-
-                  {/* Empty Space for opposite side */}
-                  <div className="hidden w-5/12 md:block" />
-                </div>
-              </Reveal>
-            ))}
+        {withDetails.length > 1 ? (
+          <div className="-mt-6 mb-6 flex justify-end">
+            <button
+              type="button"
+              onClick={() => setOpen(allOpen ? new Set() : new Set(withDetails.map((i) => i.id)))}
+              className="inline-flex cursor-pointer items-center gap-2 rounded-lg border-2 border-line bg-surface px-3 py-1.5 font-mono text-xs font-bold text-foreground shadow-[2px_2px_0px_var(--shadow-color)] transition-all hover:-translate-y-px"
+            >
+              {allOpen ? <ChevronsDownUp size={14} /> : <ChevronsUpDown size={14} />}
+              {allOpen ? "Collapse all" : "Expand all"}
+            </button>
           </div>
-        </div>
+        ) : null}
+
+        <TimelineList>
+          {items.map((exp, index) => (
+            <TimelineEntry
+              key={exp.id}
+              title={exp.role}
+              organisation={exp.company}
+              icon={<Briefcase size={14} />}
+              location={exp.location}
+              period={exp.period}
+              details={exp.description}
+              open={open.has(exp.id)}
+              onToggle={() => toggle(exp.id)}
+              delay={index * 80}
+            />
+          ))}
+        </TimelineList>
       </div>
     </section>
   );

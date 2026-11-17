@@ -1,6 +1,12 @@
+"use client";
+
+import { useSiteContent } from "@/components/site/SiteContentProvider";
 import { Card } from "@/components/ui/Card";
 
 export function AvailabilityCell() {
+  const { availability } = useSiteContent();
+  if (!availability.enabled) return null;
+
   return (
     <Card className="flex h-full flex-col justify-center gap-2 p-6">
       <div className="flex items-center gap-2">
@@ -8,13 +14,9 @@ export function AvailabilityCell() {
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-500 opacity-60" />
           <span className="relative inline-flex h-3 w-3 rounded-full bg-green-500" />
         </span>
-        <span className="font-mono text-sm text-green-700 dark:text-green-400">
-          Available for work
-        </span>
+        <span className="font-mono text-sm text-green-700 dark:text-green-400">{availability.label}</span>
       </div>
-      <p className="text-sm leading-relaxed text-muted">
-        Open to freelance projects and full-time opportunities.
-      </p>
+      {availability.text ? <p className="text-sm leading-relaxed text-muted">{availability.text}</p> : null}
     </Card>
   );
 }

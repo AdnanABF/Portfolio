@@ -1,15 +1,8 @@
 "use server";
 
 import { headers } from "next/headers";
-import emailjs from "@emailjs/nodejs";
-import {
-  COOLDOWN_MS,
-  MIN_FORM_FILL_MS,
-  RATE_LIMIT_MAX,
-  RATE_LIMIT_WINDOW_MS,
-  contactSchema,
-  type ContactInput,
-} from "./contact";
+import { apiOrigin } from "./api-origin";
+import { MIN_FORM_FILL_MS, contactSchema, type ContactInput } from "./contact";
 
 export interface SendResult {
   ok: boolean;
@@ -17,26 +10,82 @@ export interface SendResult {
   retryAfterSec?: number;
 }
 
-// In-memory per-IP ledger. Single Coolify container — no shared state needed.
-// (If ever scaled horizontally, move this to Redis/Upstash.)
-const attempts = new Map<string, number[]>();
-const lastSent = new Map<string, number>();
+// The API does the real work: it saves the message, applies the rate limit (keyed on the real
+// client IP) and sends the emails through Resend. Nothing is limited or emailed from here.
+const RATE_LIMITED_MESSAGE = "Too many messages sent. Please try again in about 10 minutes.";
 
-async function clientIp(): Promise<string> {
+// What the API needs to know about the real visitor, which this server would otherwise hide:
+// - the IP chain set by the edge proxy (Traefik). The API trusts this container's network hop and walks the chain
+//   itself, so it must be forwarded unchanged.
+// - the visitor's browser details, so the activity log shows their device instead of this server's.
+async function visitorHeaders(): Promise<Record<string, string>> {
   const h = await headers();
-  const forwarded = h.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0].trim();
-  return h.get("x-real-ip") ?? "unknown";
+  const forwarded: Record<string, string> = {};
+  const chain = h.get("x-forwarded-for");
+  if (chain) forwarded["X-Forwarded-For"] = chain;
+  const userAgent = h.get("user-agent");
+  if (userAgent) forwarded["User-Agent"] = userAgent;
+  return forwarded;
 }
 
-function prune(ip: string, now: number): number[] {
-  const recent = (attempts.get(ip) ?? []).filter(
-    (t) => Number.isFinite(t) && now - t < RATE_LIMIT_WINDOW_MS,
-  );
-  attempts.set(ip, recent);
-  return recent;
+/** Spam checks shared by both forms. Returns a result to send back, or null to continue. */
+function earlyResult(data: ContactInput): SendResult | null {
+  // Honeypot: pretend success so bots learn nothing.
+  if (data.website?.trim()) {
+    return { ok: true };
+  }
+
+  if (Date.now() - data.startedAt < MIN_FORM_FILL_MS) {
+    return { ok: false, error: "Please take a moment before sending." };
+  }
+
+  return null;
 }
 
+async function postToApi(
+  path: string,
+  body: Record<string, string>,
+  failureMessage: string,
+): Promise<SendResult> {
+  const base = apiOrigin();
+
+  const forwarded = await visitorHeaders();
+  try {
+    const res = await fetch(`${base}${path}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...forwarded,
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (res.ok) {
+      return { ok: true };
+    }
+
+    if (res.status === 429) {
+      return { ok: false, error: RATE_LIMITED_MESSAGE };
+    }
+
+    // The API explains a refusal in `message` (for example a repo that is not private).
+    if (res.status === 400 || res.status === 404) {
+      const detail = await res.json().catch(() => null);
+      if (detail && typeof detail.message === "string") {
+        return { ok: false, error: detail.message };
+      }
+    }
+
+    return { ok: false, error: failureMessage };
+  } catch {
+    return {
+      ok: false,
+      error: "Unable to reach backend service. Please email directly.",
+    };
+  }
+}
+
+/** Normal contact message: saved by the API, which emails me and sends the visitor an acknowledgement. */
 export async function sendContact(input: ContactInput): Promise<SendResult> {
   const parsed = contactSchema.safeParse(input);
   if (!parsed.success) {
@@ -44,124 +93,50 @@ export async function sendContact(input: ContactInput): Promise<SendResult> {
   }
   const data = parsed.data;
 
-  // Honeypot: pretend success so bots learn nothing.
-  if (data.website?.trim()) {
-    return { ok: true };
+  const early = earlyResult(data);
+  if (early) return early;
+
+  return postToApi(
+    "/api/contact",
+    {
+      name: data.name,
+      email: data.email,
+      subject: data.subject,
+      message: data.message,
+    },
+    "Failed to send your message. Please try again.",
+  );
+}
+
+/**
+ * Repo access request for a private project. It goes to the project endpoint, not the contact
+ * endpoint: the API stores it as a repo request, and the subject is generated on the server.
+ */
+export async function sendRepoRequest(
+  projectSlug: string,
+  input: ContactInput,
+): Promise<SendResult> {
+  const parsed = contactSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: "Please fix the highlighted fields." };
+  }
+  const data = parsed.data;
+
+  const early = earlyResult(data);
+  if (early) return early;
+
+  // The slug becomes part of the URL path, so only accept the shape project slugs have.
+  if (!/^[a-z0-9-]{1,100}$/.test(projectSlug)) {
+    return { ok: false, error: "This project could not be found." };
   }
 
-  const now = Date.now();
-  if (now - data.startedAt < MIN_FORM_FILL_MS) {
-    return { ok: false, error: "Please take a moment before sending." };
-  }
-
-  const ip = await clientIp();
-  const cooledUntil = (lastSent.get(ip) ?? 0) + COOLDOWN_MS;
-  if (now < cooledUntil) {
-    return {
-      ok: false,
-      error: `Please wait ${Math.ceil((cooledUntil - now) / 1000)}s before sending again.`,
-      retryAfterSec: Math.ceil((cooledUntil - now) / 1000),
-    };
-  }
-
-  const recent = prune(ip, now);
-  if (recent.length >= RATE_LIMIT_MAX) {
-    return {
-      ok: false,
-      error: "Submission limit reached. Please try again in about an hour.",
-    };
-  }
-
-  // If a dedicated remote backend exists (server/), forward the validated payload.
-  const remoteApi = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
-  if (remoteApi) {
-    try {
-      const res = await fetch(`${remoteApi}/api/contact`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: data.name,
-          email: data.email,
-          subject: data.subject,
-          message: data.message,
-        }),
-      });
-
-      if (res.ok) {
-        attempts.set(ip, [...recent, now]);
-        lastSent.set(ip, now);
-        return { ok: true };
-      }
-
-      if (res.status === 429) {
-        return {
-          ok: false,
-          error: "Submission limit reached. Please try again in about an hour.",
-        };
-      }
-
-      return {
-        ok: false,
-        error: "Failed to transmit via backend API. Please try again.",
-      };
-    } catch {
-      return {
-        ok: false,
-        error: "Unable to reach backend service. Please email directly.",
-      };
-    }
-  }
-
-  // Server-side EmailJS (same account + templates v1 used in the browser).
-  // All keys stay on the server — nothing is exposed to the client.
-  const serviceId = process.env.EMAILJS_SERVICE_ID;
-  const templateId = process.env.EMAILJS_TEMPLATE_ID;
-  const autoreplyTemplateId = process.env.EMAILJS_AUTOREPLY_TEMPLATE_ID;
-  const publicKey = process.env.EMAILJS_PUBLIC_KEY;
-  const privateKey = process.env.EMAILJS_PRIVATE_KEY;
-  if (!serviceId || !templateId || !publicKey || !privateKey) {
-    return {
-      ok: false,
-      error: "Email service is not configured yet. Please email directly.",
-    };
-  }
-
-  const stamp = new Date().toLocaleString("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-
-  // Same template params v1 sent — existing templates work unchanged.
-  const templateParams = {
-    name: data.name,
-    email: data.email,
-    subject: data.subject,
-    message: data.message,
-    time: stamp,
-  };
-  const auth = { publicKey, privateKey };
-
-  try {
-    // 1. Notify the owner.
-    await emailjs.send(serviceId, templateId, templateParams, auth);
-
-    // 2. Auto-reply to the sender (best-effort).
-    if (autoreplyTemplateId) {
-      await emailjs.send(
-        serviceId,
-        autoreplyTemplateId,
-        templateParams,
-        auth,
-      );
-    }
-
-    attempts.set(ip, [...recent, now]);
-    lastSent.set(ip, now);
-    return { ok: true };
-  } catch {
-    return {
-      ok: false,
-      error: "Failed to transmit. Please check your connection and try again.",
-    };
-  }
+  return postToApi(
+    `/api/projects/${projectSlug}/access-requests`,
+    {
+      name: data.name,
+      email: data.email,
+      message: data.message,
+    },
+    "Failed to send your request. Please try again.",
+  );
 }
