@@ -238,9 +238,10 @@ public class AccountService : IAccountService
         var user = await _userManager.FindByIdAsync(userId.ToString());
         if (user == null) return null;
 
+        var previousName = user.FullName;
         user.FullName = fullName.Trim();
         await _userManager.UpdateAsync(user);
-        await _activityLogger.LogAsync("USER_PROFILE_UPDATE", "User", user.Id.ToString(), "Profile name changed.");
+        await _activityLogger.LogAsync("USER_PROFILE_UPDATE", "User", user.Id.ToString(), $"Name changed from \"{previousName}\" to \"{user.FullName}\".");
 
         var roles = await _userManager.GetRolesAsync(user);
         return new UserDto

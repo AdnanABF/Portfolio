@@ -55,7 +55,7 @@ public class SessionManager : ISessionManager
         return true;
     }
 
-    public async Task RevokeAllUserSessionsAsync(Guid userId, Guid? exceptSessionId = null)
+    public async Task<int> RevokeAllUserSessionsAsync(Guid userId, Guid? exceptSessionId = null)
     {
         var sessions = await _context.UserSessions
             .Where(s => s.UserId == userId && !s.IsRevoked && (exceptSessionId == null || s.Id != exceptSessionId))
@@ -68,6 +68,7 @@ public class SessionManager : ISessionManager
         }
 
         await _context.SaveChangesAsync();
+        return sessions.Count;
     }
 
     private static string ParseDeviceInfo(string userAgent)

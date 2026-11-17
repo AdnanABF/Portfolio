@@ -12,7 +12,7 @@ import { apiOrigin } from "@/lib/api-origin";
 
 const SESSION_COOKIES = ["portfolio_session", "__Host-portfolio_session"];
 
-type SessionCheck = "admin" | "not-admin" | "unknown";
+type SessionCheck = "admin" | "not-admin" | "signed-out" | "unknown";
 
 async function checkSession(cookieHeader: string): Promise<SessionCheck> {
   try {
@@ -20,8 +20,9 @@ async function checkSession(cookieHeader: string): Promise<SessionCheck> {
       headers: { cookie: cookieHeader },
       signal: AbortSignal.timeout(8000),
     });
-    // Only the API saying "not signed in" counts as signed out.
-    if (res.status === 401 || res.status === 403) return "not-admin";
+    // Only the API saying "not signed in" counts as signed out; 403 is a signed-in visitor who is not allowed.
+    if (res.status === 401) return "signed-out";
+    if (res.status === 403) return "not-admin";
     // A slow or failing API says nothing about the session (a busy server must not log the owner out).
     if (!res.ok) return "unknown";
 
@@ -40,8 +41,10 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  const toLogin = () => {
+  const toLogin = (reason?: "session-ended") => {
     const loginUrl = new URL("/login", request.url);
+    // A cookie that the API no longer accepts means the session ended; the sign-in page says so.
+    if (reason) loginUrl.searchParams.set("reason", reason);
     // Keep the page (and its filters) so signing in lands the admin back where they were.
     loginUrl.searchParams.set("from", `${pathname}${search}`);
     return NextResponse.redirect(loginUrl);
@@ -56,6 +59,7 @@ export async function proxy(request: NextRequest) {
   // When the API could not be asked, let the request through: the admin pages show only a loading screen until the
   // browser confirms the session, and the API still checks every data request.
   const session = await checkSession(request.headers.get("cookie") ?? "");
+  if (session === "signed-out") return toLogin("session-ended");
   return session === "not-admin" ? toLogin() : NextResponse.next();
 }
 

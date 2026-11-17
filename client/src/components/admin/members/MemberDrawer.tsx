@@ -457,6 +457,9 @@ export function MemberDrawer({ memberId, refreshKey, onClose, onEdit, onChanged 
                               </span>
                               <span className="font-mono text-[10px] text-muted">{formatDateTime(entry.timestamp)}</span>
                             </div>
+                            {member && entry.userEmail && entry.userEmail !== member.email ? (
+                              <p className="mt-1.5 font-mono text-[10px] font-bold text-accent-coral">Done by {entry.userEmail}</p>
+                            ) : null}
                             <p className="mt-1.5 text-sm text-foreground">{entry.summary}</p>
                             <p className="mt-1 font-mono text-[10px] text-muted">
                               {entry.ipAddress || "no IP"}

@@ -341,18 +341,6 @@ export async function trackVisit(path: string, referrer?: string): Promise<void>
   }
 }
 
-export async function trackCvDownload(referrer?: string): Promise<void> {
-  try {
-    await safeFetch(resolveUrl("/api/telemetry/cv-download"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ referrer }),
-    });
-  } catch {
-    // Silent fail
-  }
-}
-
 export async function submitContact(data: { name: string; email: string; subject: string; message: string }) {
   const res = await fetch(resolveUrl("/api/contact"), {
     method: "POST",

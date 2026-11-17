@@ -35,6 +35,13 @@ public class AdminService : IAdminService
             logs = logs.Where(a => a.UserId == userId);
         }
 
+        if (query.InvolvingUserId.HasValue)
+        {
+            var involved = query.InvolvingUserId.Value;
+            var involvedText = involved.ToString();
+            logs = logs.Where(a => a.UserId == involved || (a.EntityType == "User" && a.EntityId == involvedText));
+        }
+
         if (query.From.HasValue)
         {
             var from = query.From.Value.UtcDateTime;

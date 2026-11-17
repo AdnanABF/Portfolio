@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Portfolio.API.Core.Entities;
+using Portfolio.API.Infrastructure.Logging;
 
 namespace Portfolio.API.Features.Auth;
 
@@ -16,17 +17,20 @@ public class AuthController : ControllerBase
     private readonly ISessionManager _sessionManager;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IValidator<LoginRequest> _validator;
+    private readonly IActivityLogger _activityLogger;
 
     public AuthController(
         IAuthService authService,
         ISessionManager sessionManager,
         UserManager<ApplicationUser> userManager,
-        IValidator<LoginRequest> validator)
+        IValidator<LoginRequest> validator,
+        IActivityLogger activityLogger)
     {
         _authService = authService;
         _sessionManager = sessionManager;
         _userManager = userManager;
         _validator = validator;
+        _activityLogger = activityLogger;
     }
 
     [AllowAnonymous]
@@ -104,11 +108,16 @@ public class AuthController : ControllerBase
             return Unauthorized();
         }
 
+        var mine = (await _sessionManager.GetUserSessionsAsync(userId, null, includeEnded: true)).FirstOrDefault(s => s.Id == id);
+
         var revoked = await _sessionManager.RevokeSessionAsync(id, userId, isAdmin: false);
         if (!revoked)
         {
             return NotFound(new { message = "Session not found or not owned by user." });
         }
+
+        var where = mine == null ? "" : $" ({mine.DeviceInfo}, {mine.IpAddress})";
+        await _activityLogger.LogAsync("SESSION_REVOKE", "User", userId.ToString(), $"Ended one of their own sessions{where}.");
 
         return Ok(new { message = "Session revoked successfully." });
     }

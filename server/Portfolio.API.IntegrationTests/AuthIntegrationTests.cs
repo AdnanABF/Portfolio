@@ -64,7 +64,6 @@ public class AuthIntegrationTests : IClassFixture<CustomWebApplicationFactory>
         (HttpMethod.Post, "/api/blog"),
         (HttpMethod.Put, "/api/blog/00000000-0000-0000-0000-000000000001"),
         (HttpMethod.Delete, "/api/blog/00000000-0000-0000-0000-000000000001"),
-        (HttpMethod.Put, "/api/settings/test-key"),
         (HttpMethod.Post, "/api/media/upload")
     ];
 
@@ -75,8 +74,7 @@ public class AuthIntegrationTests : IClassFixture<CustomWebApplicationFactory>
         "/api/projects",
         "/api/blog",
         "/api/skills",
-        "/api/experience",
-        "/api/settings"
+        "/api/experience"
     ];
 
     private async Task<HttpClient> CreateAuthenticatedClientAsync(string email, string password)
@@ -259,14 +257,11 @@ public class AuthIntegrationTests : IClassFixture<CustomWebApplicationFactory>
             "api/blog/{slug}",
             "api/skills",
             "api/experience",
-            "api/settings",
-            "api/settings/{key}",
             "api/site-content",
             "api/education",
             "api/certifications",
             "api/contact",
             "api/telemetry/visit",
-            "api/telemetry/cv-download",
             "api/auth/login",
             "api/auth/register",
             "api/auth/verify-email",

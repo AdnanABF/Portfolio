@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Download, Mail, MapPin, Printer } from "lucide-react";
 import { useSiteContent } from "@/components/site/SiteContentProvider";
-import { getExperience, getSkills, trackCvDownload } from "@/lib/api-client";
+import { getExperience, getSkills } from "@/lib/api-client";
 import { Button } from "@/components/ui/Button";
 import type { ExperienceItem, Skill } from "@/lib/types";
 
@@ -29,7 +29,6 @@ export default function ResumePage() {
 
   const handleDownload = () => {
     if (!cvUrl) return;
-    trackCvDownload(document.referrer);
     window.open(cvUrl, "_blank");
   };
 

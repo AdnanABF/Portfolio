@@ -29,6 +29,8 @@ public class ActivityLogQuery
     public DateTimeOffset? To { get; set; }
     /// <summary>Only entries written by this user (the member history tab).</summary>
     public Guid? UserId { get; set; }
+    /// <summary>Entries this user wrote and entries about this user's account (for example a revoked session).</summary>
+    public Guid? InvolvingUserId { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 10;
 }

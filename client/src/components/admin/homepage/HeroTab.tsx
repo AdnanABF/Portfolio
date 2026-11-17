@@ -34,8 +34,8 @@ export function HeroTab({ content, onChange, errors }: TabProps) {
           hint="A PDF works best."
           value={profile.cvUrl}
           onChange={(cvUrl) => setProfile({ cvUrl })}
-          accept="application/pdf,.pdf,.doc,.docx"
-          category="documents"
+          accept="application/pdf,.pdf"
+          category="cv"
           error={errorOf(errors, "profile.cvUrl")}
         />
       </Panel>

@@ -27,6 +27,8 @@ public class MediaUploadResponse
 
 public class MediaFileResult
 {
+    public Guid Id { get; set; }
+    public string Category { get; set; } = string.Empty;
     public string PhysicalPath { get; set; } = string.Empty;
     public string ContentType { get; set; } = string.Empty;
     public string FileName { get; set; } = string.Empty;

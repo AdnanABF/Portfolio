@@ -6,7 +6,7 @@ import { Footer } from "@/components/site/Footer";
 import { Navbar } from "@/components/site/Navbar";
 import { SiteContentProvider } from "@/components/site/SiteContentProvider";
 import { getHomepageLists, getSiteContent } from "@/lib/site-content";
-import { SITE_URL } from "@/lib/site";
+import { IS_PRODUCTION_SITE, SITE_URL } from "@/lib/site";
 import { CommandPalette } from "@/components/CommandPalette";
 import { LiveHealthWidget } from "@/components/LiveHealthWidget";
 import "./globals.css";
@@ -31,7 +31,7 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase: new URL(SITE_URL),
     title,
     description,
-    robots: "index, follow",
+    robots: IS_PRODUCTION_SITE ? "index, follow" : "noindex, nofollow",
     alternates: { canonical: "/" },
     icons: {
       icon: [
