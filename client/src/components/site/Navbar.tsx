@@ -13,6 +13,8 @@ import { useSiteContent } from "@/components/site/SiteContentProvider";
 const DESKTOP_LINKS = 4;
 
 export function Navbar() {
+  const navRef = useRef<HTMLElement>(null);
+  const toggleRef = useRef<HTMLButtonElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
@@ -43,6 +45,26 @@ export function Navbar() {
     };
   }, [moreOpen]);
 
+  // A tap outside the navbar or Escape closes the mobile menu, like the other menus on the site.
+  useEffect(() => {
+    if (!isOpen) return;
+    const onPointer = (e: PointerEvent) => {
+      if (!navRef.current?.contains(e.target as Node)) setIsOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      // Focus on a menu link would be left on an element that is now hidden, so it goes back to the menu button.
+      if (navRef.current?.querySelector("#mobile-navigation-menu")?.contains(document.activeElement)) toggleRef.current?.focus();
+      setIsOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [isOpen]);
+
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
     handleScroll();
@@ -52,6 +74,13 @@ export function Navbar() {
 
   return (
     <nav
+      ref={navRef}
+      // The navbar lives in the root layout and is never unmounted, so a link or button anywhere in it (the logo, the
+      // sign-in or account menu) closes the mobile menu too; otherwise it would stay open on the next page.
+      onClickCapture={(e) => {
+        const target = e.target as Element;
+        if (!toggleRef.current?.contains(target) && target.closest("a, button")) setIsOpen(false);
+      }}
       className={`fixed top-0 z-50 w-full transition-all duration-300 ${
         scrolled
           ? "border-b border-line bg-background/80 backdrop-blur-md"
@@ -133,9 +162,10 @@ export function Navbar() {
           <UserMenu />
 
           <button
+            ref={toggleRef}
             type="button"
             className="rounded-lg p-2 text-muted transition-colors outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary lg:hidden"
-            onClick={() => setIsOpen(!isOpen)}
+            onClick={() => setIsOpen((open) => !open)}
             aria-label={isOpen ? "Close navigation menu" : "Open navigation menu"}
             aria-expanded={isOpen}
             aria-controls="mobile-navigation-menu"
@@ -145,11 +175,13 @@ export function Navbar() {
         </div>
       </div>
 
-      {/* Mobile Nav */}
+      {/* Mobile Nav. Closed, it is `invisible` (visibility: hidden) as well as transparent and zero-height: opacity
+          alone leaves the links on top of the page, where they catch taps meant for it and take keyboard focus.
+          Visibility switches after the fade-out, so the closing animation still plays. */}
       <div
         id="mobile-navigation-menu"
         className={`absolute top-20 left-0 w-full border-b border-line bg-surface shadow-2xl transition-all duration-300 lg:hidden ${
-          isOpen ? "max-h-[calc(100vh_-_5rem)] overflow-y-auto opacity-100" : "max-h-0 border-b-0 opacity-0"
+          isOpen ? "visible max-h-[calc(100dvh-5rem)] overflow-y-auto opacity-100" : "invisible max-h-0 overflow-hidden border-b-0 opacity-0"
         }`}
       >
         <div className="flex flex-col gap-2 p-6">
@@ -157,7 +189,6 @@ export function Navbar() {
             <Link
               key={item.id}
               href={item.href}
-              onClick={() => setIsOpen(false)}
               className="group flex items-center justify-between rounded-lg px-4 py-3 text-lg font-medium text-muted transition-all hover:bg-cream hover:text-primary"
             >
               {item.label}
@@ -169,7 +200,6 @@ export function Navbar() {
           <div className="my-2 h-px bg-line"></div>
           <Link
             href="/#contact"
-            onClick={() => setIsOpen(false)}
             className="rounded-lg bg-primary py-3 text-center font-bold text-white transition-all hover:bg-primary-strong dark:text-black"
           >
             {profile.hireMeLabel}
