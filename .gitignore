@@ -19,6 +19,5 @@ TestResults/
 appsettings.Development.json
 appsettings.*.local.json
 
-# Antigravity / AI Agent local customizations
-.agents/
-CLAUDE.md
+# Agent session notes (local only)
+.agents/rules/current-status.md
